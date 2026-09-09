@@ -1,0 +1,37 @@
+@import "tailwindcss";
+
+/* DART 원문 표 재현 — 백엔드가 내려주는 table_html 전용 */
+.dart-table table {
+  border-collapse: collapse;
+  font-size: 12px;
+  width: auto;
+  min-width: 100%;
+}
+/* 숫자·날짜가 줄바꿈되면 읽기 어렵다. 기본은 nowrap이고 가로 스크롤로 처리한다.
+   백엔드가 긴 문장 셀에만 data-wrap을 붙인다(§TableConverter.needsWrap). */
+.dart-table th,
+.dart-table td {
+  border: 1px solid var(--color-slate-300);
+  padding: 4px 6px;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.dart-table td[data-wrap],
+.dart-table th[data-wrap] {
+  white-space: pre-wrap;
+  word-break: break-word;
+  min-width: 16rem;
+}
+.dart-table th {
+  background: var(--color-slate-100);
+  font-weight: 600;
+}
+.dart-table col {
+  width: auto !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  .dart-table th,
+  .dart-table td { border-color: var(--color-slate-600); }
+  .dart-table th { background: var(--color-slate-800); }
+}
