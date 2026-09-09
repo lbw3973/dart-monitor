@@ -1,8 +1,36 @@
+#!/usr/bin/env bash
+#
+# dart 서비스 관리 스크립트 (버전 선택 + pull + 기동).
+#
+#   ./update.sh                        메뉴 — 최근 5개 버전 중 선택
+#   ./update.sh latest                 latest 로 재기동
+#   ./update.sh 0.1.0                  특정 버전으로 재기동 (롤백도 동일)
+#   ./update.sh status | down | logs
+#   ./update.sh backfill 2026-09-01    과거 구간 소급 수집
+#   ./update.sh reparse                파싱 실패 건 재처리
+#
+# 설정 파일 경로는 환경변수로 바꾼다:
+#   DART_ENV=/opt/bwlee/etc/dart-monitor.env ./update.sh
+#   DART_COMPOSE=/opt/bwlee/lib/dart-monitor/docker-compose.deploy.yml ./update.sh
+# 기본 탐색 순서: $DART_ENV → /opt/bwlee/etc/dart-monitor.env → 스크립트 옆 .env
+#
+# 버전 목록은 GHCR API 로 읽는다. private 패키지라 토큰이 필요하다.
+# 토큰은 다음 순서로 찾는다:
+#   1) $GHCR_TOKEN
+#   2) ~/.config/ghcr-token
+#   3) ~/.docker/config.json  ← docker login 만 해두면 자동
+# 셋 다 없으면 목록 조회를 건너뛰고 태그를 직접 입력받는다.
+#
 set -euo pipefail
 
 REGISTRY="${DART_REGISTRY:-ghcr.io}"
 OWNER="${DART_OWNER:-lbw3973}"
 IMAGE_BASE="${DART_IMAGE_BASE:-dart}"
+case "${1:-}" in -h|--help)
+    awk 'NR==1{next} /^#/{sub(/^# ?/,""); print; next} {exit}' "$0"
+    exit 0 ;;
+esac
+
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 COMPOSE_FILE="${DART_COMPOSE:-$SCRIPT_DIR/docker-compose.deploy.yml}"
 TOKEN_FILE="${GHCR_TOKEN_FILE:-$HOME/.config/ghcr-token}"
@@ -110,11 +138,30 @@ deploy() {
     echo "   로그: $0 logs"
 }
 
+#	관리자 API 는 외부에 노출하지 않으므로(Caddy 가 404) 컨테이너 안에서 호출한다
+admin_api() {
+    $DC exec -T backend sh -c "wget -qO- --post-data='' 'http://localhost:8080$1'"
+}
+
 case "${1:-}" in
+    backfill)
+        FROM="${2:-}"
+        [ -n "$FROM" ] || { echo "사용법: $0 backfill 2026-09-01 [2026-09-09]"; exit 1; }
+        TO="${3:-}"
+        Q="/api/admin/backfill?from=$FROM"
+        [ -n "$TO" ] && Q="$Q&to=$TO"
+        echo "== 백필 $FROM ~ ${TO:-오늘}"
+        admin_api "$Q"
+        echo
+        echo "   원본 다운로드·파싱은 비동기로 이어집니다. 진행: $0 logs"
+        exit 0 ;;
+    reparse)
+        echo "== 실패 건 재파싱 요청"
+        admin_api "/api/admin/reparse?status=FAILED"
+        echo; exit 0 ;;
     status) exec $DC ps ;;
     down)   exec $DC down ;;
     logs)   exec $DC logs -f --tail=100 backend ;;
-    -h|--help) grep '^#' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     "")     deploy "$(choose_tag)" ;;
     *)      deploy "$1" ;;
 esac
