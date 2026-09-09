@@ -2,7 +2,7 @@
 # 프론트와 백엔드는 별개 이미지다. 각각의 버전을 따로 올린다.
 IMAGE_NAME      = ghcr.io/lbw3973/dart
 BACKEND_VERSION = 0.1.0
-WEB_VERSION     = 0.1.0
+WEB_VERSION     = 0.3.0
 LATEST          = latest
 PLATFORM        = linux/arm64
 
