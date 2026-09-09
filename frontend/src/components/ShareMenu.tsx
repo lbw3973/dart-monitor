@@ -105,11 +105,22 @@ export function ShareMenu({ disclosure: d, onNotice }: Props) {
   };
 
   const shareKakao = () => {
-    if (!window.Kakao?.isInitialized()) { onNotice("카카오 공유를 사용할 수 없습니다.", "warn"); return; }
+    if (!window.Kakao?.isInitialized()) {
+      onNotice("카카오 공유를 사용할 수 없습니다.", "warn");
+      return;
+    }
+    // 링크는 카카오 콘솔의 [플랫폼 > Web > 사이트 도메인]에 등록된 주소여야 열린다.
+    // localhost 로 공유하면 받는 쪽에서 열 수 없다.
+    if (location.hostname === "localhost" || location.hostname === "127.0.0.1") {
+      onNotice("로컬 주소는 상대방이 열 수 없습니다. 운영 주소에서 공유해 주세요.", "warn");
+      return;
+    }
     window.Kakao.Share.sendDefault({
       objectType: "text",
       text: `${title}\n${desc}`,
       link: { mobileWebUrl: url, webUrl: url },
+      // 탭할 곳을 명확히 한다 — 텍스트만 있으면 링크인지 모르는 경우가 있다
+      buttons: [{ title: "공시 보기", link: { mobileWebUrl: url, webUrl: url } }],
     });
   };
 
