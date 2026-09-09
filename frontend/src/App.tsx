@@ -7,6 +7,8 @@ import {
 import { DetailPane } from "./components/DetailPane";
 import { DisclosureList } from "./components/DisclosureList";
 import { FilterBar } from "./components/FilterBar";
+import { Toast } from "./components/Toast";
+import type { ToastMessage } from "./components/Toast";
 import type { DisclosureSummary } from "./types";
 import { useDisclosureStream } from "./useDisclosureStream";
 import { useUrlState } from "./useUrlState";
@@ -23,19 +25,13 @@ export default function App() {
   const [debouncedQ, setDebouncedQ] = useState(view.q);
   const [live, setLive] = useState(true);
   const [newCount, setNewCount] = useState(0);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [toast, setToast] = useState<ToastMessage | null>(null);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedQ(filters.q), 300);
     return () => clearTimeout(t);
   }, [filters.q]);
 
-  // notice 자동 해제 — 복사 완료 같은 알림이 계속 떠 있을 필요는 없다
-  useEffect(() => {
-    if (!notice) return;
-    const t = setTimeout(() => setNotice(null), 3000);
-    return () => clearTimeout(t);
-  }, [notice]);
 
   const meQuery = useQuery({ queryKey: ["me"], queryFn: fetchMe });
   const authed = meQuery.data?.authenticated ?? false;
@@ -81,10 +77,11 @@ export default function App() {
       qc.invalidateQueries({ queryKey: ["detail"] });
     },
     onError: (e: Error) => {
-      setNotice(
+      setToast(
         e.message === "UNAUTHORIZED"
-          ? "저장하려면 카카오 로그인이 필요합니다."
-          : "저장에 실패했습니다: " + e.message,
+          ? { text: "저장하려면 로그인이 필요합니다.", tone: "warn",
+              action: { label: "카카오 로그인", href: KAKAO_LOGIN_URL } }
+          : { text: "저장에 실패했습니다: " + e.message, tone: "warn" },
       );
     },
   });
@@ -97,7 +94,8 @@ export default function App() {
 
   const switchTab = (t: Tab) => {
     if (t === "saved" && !authed) {
-      setNotice("저장목록을 보려면 카카오 로그인이 필요합니다.");
+      setToast({ text: "저장목록을 보려면 로그인이 필요합니다.", tone: "warn",
+                 action: { label: "카카오 로그인", href: KAKAO_LOGIN_URL } });
       return;
     }
     setView({ tab: t, page: 0, selected: null });
@@ -124,23 +122,6 @@ export default function App() {
           setView({ tab: "all", selected: null }, true);
         }}
       />
-
-      {notice && (
-        <div className="flex items-center gap-3 border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
-          <span>{notice}</span>
-          {!authed && (
-            <a
-              href={KAKAO_LOGIN_URL}
-              className="rounded bg-[#FEE500] px-2 py-0.5 font-medium text-[#191600] hover:brightness-95"
-            >
-              카카오 로그인
-            </a>
-          )}
-          <button onClick={() => setNotice(null)} className="ml-auto text-amber-500 hover:text-amber-700">
-            닫기
-          </button>
-        </div>
-      )}
 
       <main className="flex min-h-0 flex-1">
         {/* 모바일에서는 상세를 보는 동안 목록을 숨긴다 (단일 컬럼) */}
@@ -198,13 +179,15 @@ export default function App() {
             loading={detailQuery.isLoading}
             error={detailQuery.error}
             onBack={() => history.back()}
-            onNotice={setNotice}
+            onNotice={(text, tone) => setToast({ text, tone })}
             onToggleBookmark={() =>
               detailQuery.data && toggle(detailQuery.data.disclosure)
             }
           />
         </section>
       </main>
+
+      <Toast message={toast} onDismiss={() => setToast(null)} />
     </div>
   );
 }

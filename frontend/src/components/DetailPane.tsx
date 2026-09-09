@@ -11,7 +11,7 @@ interface Props {
   error: unknown;
   onToggleBookmark: () => void;
   onBack: () => void;
-  onNotice: (msg: string) => void;
+  onNotice: (msg: string, tone?: "info" | "warn") => void;
 }
 
 export function DetailPane({ detail, loading, error, onToggleBookmark, onBack, onNotice }: Props) {

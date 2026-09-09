@@ -43,9 +43,50 @@ function loadKakao(): Promise<boolean> {
   });
 }
 
+/**
+ * 주소를 클립보드에 넣는다.
+ *
+ * navigator.clipboard 는 문서에 포커스가 없으면 거부하지 않고 그냥 멈추는 경우가 있다.
+ * 그러면 버튼이 아무 반응 없는 것처럼 보이므로 타임아웃을 두고 폴백으로 넘어간다.
+ * (clipboard API 는 https 또는 localhost 에서만 쓸 수 있기도 하다)
+ */
+async function copyText(text: string): Promise<boolean> {
+  if (navigator.clipboard?.writeText) {
+    try {
+      await Promise.race([
+        navigator.clipboard.writeText(text),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 800)),
+      ]);
+      return true;
+    } catch {
+      /* 아래 폴백으로 */
+    }
+  }
+  return legacyCopy(text);
+}
+
+/** 구식이지만 포커스 제약이 덜하고 http 에서도 동작한다. */
+function legacyCopy(text: string): boolean {
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  ta.setAttribute("readonly", "");
+  ta.style.cssText = "position:fixed;top:0;left:0;opacity:0;pointer-events:none";
+  document.body.appendChild(ta);
+  ta.select();
+  ta.setSelectionRange(0, text.length);
+  let ok = false;
+  try {
+    ok = document.execCommand("copy");
+  } catch {
+    ok = false;
+  }
+  document.body.removeChild(ta);
+  return ok;
+}
+
 interface Props {
   disclosure: DisclosureSummary;
-  onNotice: (msg: string) => void;
+  onNotice: (msg: string, tone?: "info" | "warn") => void;
 }
 
 export function ShareMenu({ disclosure: d, onNotice }: Props) {
@@ -58,17 +99,13 @@ export function ShareMenu({ disclosure: d, onNotice }: Props) {
   const desc = `제출인 ${d.flrNm ?? "-"} · ${d.rceptDt}`;
 
   const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(url);
-      onNotice("주소를 복사했습니다.");
-    } catch {
-      // clipboard API는 https 또는 localhost에서만 동작한다
-      onNotice("복사에 실패했습니다. 주소창에서 직접 복사해 주세요.");
-    }
+    const ok = await copyText(url);
+    if (ok) onNotice("주소를 복사했습니다.");
+    else onNotice("복사에 실패했습니다. 주소창에서 직접 복사해 주세요.", "warn");
   };
 
   const shareKakao = () => {
-    if (!window.Kakao?.isInitialized()) { onNotice("카카오 공유를 사용할 수 없습니다."); return; }
+    if (!window.Kakao?.isInitialized()) { onNotice("카카오 공유를 사용할 수 없습니다.", "warn"); return; }
     window.Kakao.Share.sendDefault({
       objectType: "text",
       text: `${title}\n${desc}`,
