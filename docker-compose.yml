@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: dart-postgres
+    environment:
+      POSTGRES_DB: dart
+      POSTGRES_USER: dart
+      POSTGRES_PASSWORD: dart
+      TZ: Asia/Seoul
+    ports:
+      - "5433:5432"      # 로컬 psql(5432)과 충돌 회피
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dart -d dart"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:

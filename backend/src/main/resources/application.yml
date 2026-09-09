@@ -1,0 +1,49 @@
+spring:
+  config:
+    import: classpath:parse-rules.yml
+  application:
+    name: dart-monitor
+  datasource:
+    url: jdbc:postgresql://localhost:5433/dart
+    username: dart
+    password: dart
+  jpa:
+    hibernate:
+      ddl-auto: validate          # 스키마는 Flyway가 소유한다
+    open-in-view: false
+    properties:
+      hibernate.jdbc.time_zone: Asia/Seoul
+  flyway:
+    enabled: true
+  threads:
+    virtual:
+      enabled: true
+
+dart:
+  api-key: ${DART_API_KEY}
+  base-url: https://opendart.fss.or.kr/api
+  detail-types: [D001, D002]
+  poll-interval: 60s
+  lookback-days: 1                # 평상시 조회 창 (자정 경계 유실 방지)
+  catch-up-max-days: 30           # 기동 시 소급 상한. 0이면 비활성
+  raw-dir: ${DART_RAW_DIR:./raw}
+  fetch-concurrency: 2
+  max-retry: 7
+
+kakao:
+  rest-api-key: ${KAKAO_REST_API_KEY}
+  client-secret: ${KAKAO_CLIENT_SECRET:}
+  redirect-uri: ${KAKAO_REDIRECT_URI:http://localhost:8080/api/auth/kakao/callback}
+  app-base-url: ${APP_BASE_URL:http://localhost:5173}
+  session-ttl: 14d
+  cookie-secure: ${COOKIE_SECURE:false}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+
+logging:
+  level:
+    kr.irm.dart: DEBUG
