@@ -7,37 +7,20 @@ import {
 import { DetailPane } from "./components/DetailPane";
 import { DisclosureList } from "./components/DisclosureList";
 import { FilterBar } from "./components/FilterBar";
-import type { DisclosureSummary, ReportType } from "./types";
+import type { DisclosureSummary } from "./types";
 import { useDisclosureStream } from "./useDisclosureStream";
-
-interface Filters {
-  type: ReportType | "";
-  q: string;
-  from: string;
-  to: string;
-}
-
-const ymd = (d: Date) => d.toISOString().slice(0, 10);
-
-/** 기본 검색 기간: 최근 1주일 */
-function defaultRange(): { from: string; to: string } {
-  const today = new Date();
-  const weekAgo = new Date(today);
-  weekAgo.setDate(today.getDate() - 6);   // 오늘 포함 7일
-  return { from: ymd(weekAgo), to: ymd(today) };
-}
-
-type Tab = "all" | "saved";
+import { useUrlState } from "./useUrlState";
+import type { Tab } from "./useUrlState";
 
 export default function App() {
   const qc = useQueryClient();
-  const [filters, setFilters] = useState<Filters>(() => ({
-    type: "", q: "", ...defaultRange(),
-  }));
-  const [debouncedQ, setDebouncedQ] = useState("");
-  const [tab, setTab] = useState<Tab>("all");
-  const [page, setPage] = useState(0);
-  const [selected, setSelected] = useState<string | null>(null);
+  // 상태를 URL에 반영한다 — 그래야 뒤로가기가 사이트 이탈이 아니라
+  // 이전 화면(목록·이전 페이지)으로 돌아간다.
+  const [view, setView] = useUrlState();
+  const { tab, page, selected } = view;
+  const filters = { type: view.type, q: view.q, from: view.from, to: view.to };
+
+  const [debouncedQ, setDebouncedQ] = useState(view.q);
   const [live, setLive] = useState(true);
   const [newCount, setNewCount] = useState(0);
   const [notice, setNotice] = useState<string | null>(null);
@@ -47,13 +30,20 @@ export default function App() {
     return () => clearTimeout(t);
   }, [filters.q]);
 
+  // notice 자동 해제 — 복사 완료 같은 알림이 계속 떠 있을 필요는 없다
+  useEffect(() => {
+    if (!notice) return;
+    const t = setTimeout(() => setNotice(null), 3000);
+    return () => clearTimeout(t);
+  }, [notice]);
+
   const meQuery = useQuery({ queryKey: ["me"], queryFn: fetchMe });
   const authed = meQuery.data?.authenticated ?? false;
 
   // 로그아웃 상태에서 저장목록 탭에 머물지 않도록
   useEffect(() => {
-    if (!authed && tab === "saved") setTab("all");
-  }, [authed, tab]);
+    if (!authed && tab === "saved") setView({ tab: "all" }, true);
+  }, [authed, tab, setView]);
 
   // SSE가 살아 있으면 폴링은 불필요하다. 끊기면 자동으로 30초 폴링이 공백을 메운다.
   const streamConnected = useDisclosureStream({
@@ -102,18 +92,15 @@ export default function App() {
   const toggle = (d: DisclosureSummary) =>
     bookmarkMutation.mutate({ rceptNo: d.rceptNo, marked: d.bookmarked });
 
-  const patch = (p: Partial<Filters>) => {
-    setFilters(f => ({ ...f, ...p }));
-    setPage(0);
-  };
+  // 필터는 replace — 검색어가 타이핑마다 히스토리를 쌓으면 뒤로가기가 못 쓰게 된다
+  const patch = (p: Partial<typeof filters>) => setView({ ...p, page: 0 }, true);
 
   const switchTab = (t: Tab) => {
     if (t === "saved" && !authed) {
       setNotice("저장목록을 보려면 카카오 로그인이 필요합니다.");
       return;
     }
-    setTab(t);
-    setPage(0);
+    setView({ tab: t, page: 0, selected: null });
   };
 
   const total = listQuery.data?.totalElements ?? 0;
@@ -134,7 +121,7 @@ export default function App() {
         onLogout={async () => {
           await logout();
           qc.invalidateQueries();
-          setTab("all");
+          setView({ tab: "all", selected: null }, true);
         }}
       />
 
@@ -162,7 +149,7 @@ export default function App() {
         >
           {newCount > 0 && tab === "all" && (
             <button
-              onClick={() => { setNewCount(0); setPage(0); listQuery.refetch(); }}
+              onClick={() => { setNewCount(0); setView({ page: 0 }, true); listQuery.refetch(); }}
               className="border-b border-emerald-200 bg-emerald-50 py-1.5 text-xs font-medium text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
             >
               신규 공시 {newCount}건 도착 · 새로고침
@@ -175,7 +162,7 @@ export default function App() {
               selected={selected}
               loading={listQuery.isLoading}
               emptyText={tab === "saved" ? "저장한 공시가 없습니다. 목록에서 ☆를 눌러 저장하세요." : undefined}
-              onSelect={setSelected}
+              onSelect={rceptNo => setView({ selected: rceptNo })}
               onToggleBookmark={toggle}
             />
           </div>
@@ -184,7 +171,7 @@ export default function App() {
             <div className="flex shrink-0 items-center justify-between gap-1 border-t border-slate-200 px-2 py-1.5 text-xs dark:border-slate-700">
               <button
                 disabled={page === 0}
-                onClick={() => setPage(p => p - 1)}
+                onClick={() => setView({ page: page - 1 })}
                 className="shrink-0 rounded px-2 py-1 whitespace-nowrap disabled:opacity-30 enabled:hover:bg-slate-100 dark:enabled:hover:bg-slate-800"
               >
                 ←<span className="hidden sm:inline"> 이전</span>
@@ -194,7 +181,7 @@ export default function App() {
               </span>
               <button
                 disabled={listQuery.data?.last}
-                onClick={() => setPage(p => p + 1)}
+                onClick={() => setView({ page: page + 1 })}
                 className="shrink-0 rounded px-2 py-1 whitespace-nowrap disabled:opacity-30 enabled:hover:bg-slate-100 dark:enabled:hover:bg-slate-800"
               >
                 <span className="hidden sm:inline">다음 </span>→
@@ -210,7 +197,8 @@ export default function App() {
             detail={detailQuery.data}
             loading={detailQuery.isLoading}
             error={detailQuery.error}
-            onBack={() => setSelected(null)}
+            onBack={() => history.back()}
+            onNotice={setNotice}
             onToggleBookmark={() =>
               detailQuery.data && toggle(detailQuery.data.disclosure)
             }
