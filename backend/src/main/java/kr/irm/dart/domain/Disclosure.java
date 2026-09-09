@@ -1,0 +1,160 @@
+package kr.irm.dart.domain;
+
+import jakarta.persistence.*;
+import java.time.Instant;
+import java.time.LocalDate;
+
+@Entity
+@Table(name = "disclosure")
+public class Disclosure {
+
+    @Id
+    @Column(name = "rcept_no", length = 14, nullable = false, updatable = false)
+    private String rceptNo;
+
+    @Column(name = "corp_code", length = 8, nullable = false)
+    private String corpCode;
+
+    @Column(name = "corp_name", nullable = false)
+    private String corpName;
+
+    @Column(name = "stock_code", length = 6)
+    private String stockCode;
+
+    @Column(name = "corp_cls", length = 1)
+    private String corpCls;
+
+    @Column(name = "report_nm", nullable = false)
+    private String reportNm;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "report_type", length = 32, nullable = false)
+    private ReportType reportType;
+
+    @Column(name = "is_correction", nullable = false)
+    private boolean correction;
+
+    @Column(name = "flr_nm")
+    private String flrNm;
+
+    @Column(name = "rcept_dt", nullable = false)
+    private LocalDate rceptDt;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "parse_status", length = 24, nullable = false)
+    private ParseStatus parseStatus = ParseStatus.PENDING;
+
+    @Column(name = "parse_error")
+    private String parseError;
+
+    @Column(name = "retry_count", nullable = false)
+    private int retryCount;
+
+    @Column(name = "next_retry_at")
+    private Instant nextRetryAt;
+
+    @Column(name = "raw_file_path")
+    private String rawFilePath;
+
+    @Column(name = "discovered_at", nullable = false, updatable = false)
+    private Instant discoveredAt = Instant.now();
+
+    @Column(name = "fetched_at")
+    private Instant fetchedAt;
+
+    @Column(name = "parsed_at")
+    private Instant parsedAt;
+
+    protected Disclosure() {}
+
+    public Disclosure(String rceptNo, String corpCode, String corpName, String stockCode,
+                      String corpCls, String reportNm, String flrNm, LocalDate rceptDt) {
+        this.rceptNo = rceptNo;
+        this.corpCode = corpCode;
+        this.corpName = corpName;
+        this.stockCode = blankToNull(stockCode);
+        this.corpCls = blankToNull(corpCls);
+        this.reportNm = reportNm;
+        this.reportType = ReportType.from(reportNm);
+        this.correction = reportNm != null && reportNm.startsWith("[");
+        this.flrNm = flrNm;
+        this.rceptDt = rceptDt;
+    }
+
+    private static String blankToNull(String s) {
+        return (s == null || s.isBlank()) ? null : s.trim();
+    }
+
+    public void markFetching() {
+        this.parseStatus = ParseStatus.FETCHING;
+    }
+
+    public void markFetched(String path) {
+        this.parseStatus = ParseStatus.FETCHED;
+        this.rawFilePath = path;
+        this.fetchedAt = Instant.now();
+        this.parseError = null;
+        this.nextRetryAt = null;
+    }
+
+    /** 실패를 기록하고 지수 백오프로 다음 재시도 시각을 잡는다. 한도 초과 시 FAILED로 고정. */
+    public void markRetryable(String error, int maxRetry) {
+        this.retryCount++;
+        this.parseError = truncate(error);
+        if (this.retryCount >= maxRetry) {
+            this.parseStatus = ParseStatus.FAILED;
+            this.nextRetryAt = null;
+        } else {
+            this.parseStatus = ParseStatus.PENDING;
+            this.nextRetryAt = Instant.now().plusSeconds(backoffSeconds(this.retryCount));
+        }
+    }
+
+    public void markParsed(boolean withWarn, String warning) {
+        this.parseStatus = withWarn ? ParseStatus.PARSED_WITH_WARN : ParseStatus.PARSED;
+        this.parseError = truncate(warning);
+        this.parsedAt = Instant.now();
+    }
+
+    public void markParseFailed(String error) {
+        this.parseStatus = ParseStatus.FAILED;
+        this.parseError = truncate(error);
+        this.parsedAt = Instant.now();
+    }
+
+    /**
+     * 접수 직후 document.xml이 아직 없는 경우가 실제로 발생한다(status=014).
+     * 실측 지연은 약 3분이었으므로 초반 구간을 촘촘히 두고 뒤로 갈수록 벌린다.
+     * maxRetry=7 기준 총 재시도 창은 약 1시간.
+     */
+    private static long backoffSeconds(int attempt) {
+        return switch (attempt) {
+            case 1 -> 10;
+            case 2 -> 30;
+            case 3 -> 60;
+            case 4 -> 180;
+            case 5 -> 600;
+            default -> 1800;
+        };
+    }
+
+    private static String truncate(String s) {
+        if (s == null) return null;
+        return s.length() <= 1000 ? s : s.substring(0, 1000);
+    }
+
+    public String getRceptNo() { return rceptNo; }
+    public String getCorpCode() { return corpCode; }
+    public String getCorpName() { return corpName; }
+    public String getReportNm() { return reportNm; }
+    public ReportType getReportType() { return reportType; }
+    public boolean isCorrection() { return correction; }
+    public String getFlrNm() { return flrNm; }
+    public LocalDate getRceptDt() { return rceptDt; }
+    public ParseStatus getParseStatus() { return parseStatus; }
+    public int getRetryCount() { return retryCount; }
+    public String getRawFilePath() { return rawFilePath; }
+    public String getStockCode() { return stockCode; }
+    public String getParseError() { return parseError; }
+    public java.time.Instant getParsedAt() { return parsedAt; }
+}
