@@ -1,18 +1,3 @@
-#!/usr/bin/env bash
-#
-# dart 서비스 관리 스크립트 (버전 선택 + pull + 기동).
-#
-#   ./update.sh                 메뉴 — 최근 5개 버전 중 선택
-#   ./update.sh latest          latest 로 재기동
-#   ./update.sh 0.1.0           특정 버전으로 재기동
-#   ./update.sh status | down | logs
-#
-# 태그는 DART_TAG 환경변수로도 준다:  DART_TAG=0.1.0 ./update.sh
-#
-# 버전 목록은 GHCR API 로 읽는다. private 패키지라 토큰이 필요하다.
-#   ~/.config/ghcr-token 에 read:packages 토큰을 넣어두거나 GHCR_TOKEN 으로 준다.
-#   토큰이 없으면 목록 조회를 건너뛰고 직접 입력받는다.
-#
 set -euo pipefail
 
 REGISTRY="${DART_REGISTRY:-ghcr.io}"
