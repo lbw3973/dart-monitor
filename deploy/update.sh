@@ -34,7 +34,19 @@ fi
 #	GHCR 태그 목록. 실패해도 스크립트를 죽이지 않는다(직접 입력으로 넘어간다).
 ghcr_token() {
     if [ -n "${GHCR_TOKEN:-}" ]; then printf '%s' "$GHCR_TOKEN"; return; fi
-    [ -f "$TOKEN_FILE" ] && tr -d '\n' < "$TOKEN_FILE"
+    if [ -f "$TOKEN_FILE" ]; then tr -d '\n' < "$TOKEN_FILE"; return; fi
+    # docker login 이 저장해 둔 자격증명에서 꺼낸다 (별도 토큰 파일 없이 동작)
+    command -v python3 >/dev/null || return 1
+    python3 - <<'PYEOF' 2>/dev/null
+import base64, json, os
+try:
+    with open(os.path.expanduser('~/.docker/config.json')) as f:
+        auth = json.load(f).get('auths', {}).get('ghcr.io', {}).get('auth')
+    if auth:
+        print(base64.b64decode(auth).decode().split(':', 1)[1], end='')
+except Exception:
+    pass
+PYEOF
 }
 
 list_tags() {
