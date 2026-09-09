@@ -1,0 +1,80 @@
+# 서버에서 쓰는 구성 — 빌드하지 않고 레지스트리의 이미지를 받아 실행한다.
+# 서버에 필요한 파일은 이 파일 + deploy/Caddyfile + .env 셋뿐이다.
+#
+#   docker compose -f docker-compose.deploy.yml pull
+#   docker compose -f docker-compose.deploy.yml up -d
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: dart
+      POSTGRES_USER: dart
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD를 .env에 설정하세요}
+      TZ: Asia/Seoul
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # ports를 열지 않는다 — 컨테이너 네트워크 내부에서만 접근
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dart -d dart"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    # 2GB 인스턴스 기준. 상한이 없으면 Postgres가 메모리를 밀어내 JVM이 OOM으로 죽는다
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    shm_size: 128mb
+
+  backend:
+    image: ${IMAGE_NAME:?IMAGE_NAME을 .env에 설정하세요}-backend:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      postgres: { condition: service_healthy }
+    environment:
+      TZ: Asia/Seoul
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/dart
+      SPRING_DATASOURCE_USERNAME: dart
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      DART_API_KEY: ${DART_API_KEY:?}
+      DART_RAW_DIR: /data/raw
+      KAKAO_REST_API_KEY: ${KAKAO_REST_API_KEY:?}
+      KAKAO_CLIENT_SECRET: ${KAKAO_CLIENT_SECRET:-}
+      KAKAO_REDIRECT_URI: https://${DOMAIN:?}/api/auth/kakao/callback
+      APP_BASE_URL: https://${DOMAIN}
+      COOKIE_SECURE: "true"
+      # 컨테이너 상한(900M)의 65% ≈ 585MB를 힙으로. 나머지는 메타스페이스·스레드 몫
+      JAVA_OPTS: "-XX:MaxRAMPercentage=65 -XX:+UseSerialGC -Xss512k"
+    volumes:
+      - rawdata:/data/raw       # 원본 ZIP — 재파싱에 필요하므로 반드시 보존
+    deploy:
+      resources:
+        limits:
+          memory: 900M
+
+  web:
+    image: ${IMAGE_NAME}-web:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    depends_on: [backend]
+    environment:
+      DOMAIN: ${DOMAIN:?}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"          # HTTP/3
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddydata:/data        # 인증서 — 지우면 Let's Encrypt 발급 한도에 걸린다
+      - caddyconfig:/config
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+volumes:
+  pgdata:
+  rawdata:
+  caddydata:
+  caddyconfig:

@@ -1,0 +1,40 @@
+# {$DOMAIN} 은 docker-compose의 환경변수로 주입된다.
+# Caddy가 Let's Encrypt 인증서를 자동 발급·갱신한다.
+{$DOMAIN} {
+	encode gzip
+
+	# 관리자 엔드포인트는 인터넷에 노출하지 않는다 (PLAN §8.4).
+	# 필요할 때는 SSH로 접속해 서버 내부에서 호출한다:
+	#   curl -X POST localhost:8080/api/admin/reparse?status=FAILED
+	handle /api/admin/* {
+		respond 404
+	}
+
+	# SSE는 버퍼링하면 안 된다
+	handle /api/stream {
+		reverse_proxy backend:8080 {
+			flush_interval -1
+		}
+	}
+
+	handle /api/* {
+		reverse_proxy backend:8080
+	}
+
+	handle /actuator/* {
+		respond 404
+	}
+
+	# SPA — 정적 파일이 없으면 index.html로 폴백
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy strict-origin-when-cross-origin
+	}
+}

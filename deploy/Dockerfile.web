@@ -1,0 +1,15 @@
+# 빌드 컨텍스트는 프로젝트 루트다 (docker-compose.prod.yml의 context: .)
+# ── 프론트 빌드 ──
+FROM node:24-alpine AS build
+WORKDIR /src
+RUN corepack enable
+COPY frontend/package.json frontend/pnpm-lock.yaml* ./
+RUN pnpm install --frozen-lockfile || pnpm install
+COPY frontend/ ./
+RUN pnpm build
+
+# ── 정적 서빙 + 리버스 프록시 ──
+# Caddy 하나로 정적 파일과 API 프록시를 모두 처리한다 (nginx 컨테이너 불필요).
+# Caddyfile은 볼륨으로 마운트하므로 도메인 변경 시 재빌드가 필요 없다.
+FROM caddy:2-alpine
+COPY --from=build /src/dist /srv
