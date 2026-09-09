@@ -18,7 +18,7 @@ export default function App() {
   const qc = useQueryClient();
   // 상태를 URL에 반영한다 — 그래야 뒤로가기가 사이트 이탈이 아니라
   // 이전 화면(목록·이전 페이지)으로 돌아간다.
-  const [view, setView] = useUrlState();
+  const { state: view, update: setView, goBack, goHome } = useUrlState();
   const { tab, page, selected } = view;
   const filters = { type: view.type, q: view.q, from: view.from, to: view.to };
 
@@ -116,6 +116,7 @@ export default function App() {
         onChange={patch}
         onToggleLive={() => setLive(v => !v)}
         onTab={switchTab}
+        onHome={goHome}
         onLogout={async () => {
           await logout();
           qc.invalidateQueries();
@@ -178,7 +179,7 @@ export default function App() {
             detail={detailQuery.data}
             loading={detailQuery.isLoading}
             error={detailQuery.error}
-            onBack={() => history.back()}
+            onBack={goBack}
             onNotice={(text, tone) => setToast({ text, tone })}
             onToggleBookmark={() =>
               detailQuery.data && toggle(detailQuery.data.disclosure)

@@ -63,11 +63,17 @@ function stringify(s: ViewState): string {
  */
 export function useUrlState() {
   const [state, setState] = useState<ViewState>(() => parse(location.search));
+  // 우리가 쌓은 히스토리 깊이. 공유 링크로 바로 들어온 경우 0 이므로
+  // 뒤로가기를 눌러도 브라우저를 벗어나지 않게 판단할 수 있다.
+  const [depth, setDepth] = useState<number>(() => history.state?.dartDepth ?? 0);
   const stateRef = useRef(state);
   stateRef.current = state;
 
   useEffect(() => {
-    const onPop = () => setState(parse(location.search));
+    const onPop = () => {
+      setState(parse(location.search));
+      setDepth(history.state?.dartDepth ?? 0);
+    };
     addEventListener("popstate", onPop);
     return () => removeEventListener("popstate", onPop);
   }, []);
@@ -75,12 +81,29 @@ export function useUrlState() {
   const update = useCallback((patch: Partial<ViewState>, replace = false) => {
     const next = { ...stateRef.current, ...patch };
     const url = stringify(next);
-    if (url !== location.search && url !== location.pathname + location.search) {
-      if (replace) history.replaceState(null, "", url);
-      else history.pushState(null, "", url);
+    const cur = location.pathname + location.search;
+    const target = url.startsWith("?") ? location.pathname + url : url;
+
+    if (target !== cur) {
+      const d = (history.state?.dartDepth ?? 0) + (replace ? 0 : 1);
+      if (replace) history.replaceState({ dartDepth: d }, "", url);
+      else history.pushState({ dartDepth: d }, "", url);
+      setDepth(d);
     }
     setState(next);
   }, []);
 
-  return [state, update] as const;
+  /** 앱 안에서 뒤로 갈 곳이 있으면 뒤로, 없으면(공유 링크 진입 등) 홈으로 */
+  const goBack = useCallback(() => {
+    if ((history.state?.dartDepth ?? 0) > 0) history.back();
+    else update({ selected: null }, true);
+  }, [update]);
+
+  /** 헤더 로고 — 필터·선택을 모두 비우고 처음 화면으로 */
+  const goHome = useCallback(() => {
+    const range = defaultRange();
+    update({ tab: "all", type: "", q: "", ...range, page: 0, selected: null });
+  }, [update]);
+
+  return { state, update, goBack, goHome, depth } as const;
 }

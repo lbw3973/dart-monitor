@@ -16,6 +16,7 @@ interface Props {
   onChange: (patch: { type?: ReportType | ""; q?: string; from?: string; to?: string }) => void;
   onToggleLive: () => void;
   onTab: (t: "all" | "saved") => void;
+  onHome: () => void;
   onLogout: () => void;
 }
 
@@ -31,7 +32,7 @@ const INPUT =
 
 export function FilterBar({
   type, q, from, to, total, live, streamConnected, me, tab,
-  onChange, onToggleLive, onTab, onLogout,
+  onChange, onToggleLive, onTab, onLogout, onHome,
 }: Props) {
   const [open, setOpen] = useState(false);   // 모바일에서 필터 접기
 
@@ -39,9 +40,13 @@ export function FilterBar({
     <header className="border-b border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
       {/* 1행: 항상 보인다 */}
       <div className="flex items-center gap-2 px-3 py-2 sm:px-4">
-        <h1 className="shrink-0 text-sm font-semibold text-slate-800 dark:text-slate-100">
+        <button
+          onClick={onHome}
+          title="처음 화면으로"
+          className="shrink-0 rounded px-1 text-sm font-semibold text-slate-800 transition hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-800"
+        >
           DART <span className="hidden sm:inline">지분공시</span>
-        </h1>
+        </button>
 
         <div className="flex shrink-0 rounded bg-slate-100 p-0.5 dark:bg-slate-800">
           {(["all", "saved"] as const).map(t => (
