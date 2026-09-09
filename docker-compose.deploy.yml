@@ -29,7 +29,7 @@ services:
     shm_size: 128mb
 
   backend:
-    image: ${IMAGE_NAME:?IMAGE_NAME을 .env에 설정하세요}-backend:${IMAGE_TAG:-latest}
+    image: ${IMAGE_NAME:?IMAGE_NAME을 .env에 설정하세요}-backend:${BACKEND_TAG:-latest}
     restart: unless-stopped
     depends_on:
       postgres: { condition: service_healthy }
@@ -55,7 +55,7 @@ services:
           memory: 900M
 
   web:
-    image: ${IMAGE_NAME}-web:${IMAGE_TAG:-latest}
+    image: ${IMAGE_NAME}-web:${WEB_TAG:-latest}
     restart: unless-stopped
     depends_on: [backend]
     environment:

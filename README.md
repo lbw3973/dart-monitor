@@ -37,11 +37,15 @@ cd frontend && pnpm install && pnpm dev                             # ③ 프론
 
 ### 1. 이미지 빌드 · 푸시 (맥)
 
+프론트와 백엔드는 **별개 이미지이고 버전도 따로 간다.** 고친 쪽만 올리면 된다.
+
 ```bash
-make docker
+make docker-web        # 프론트만
+make docker-backend    # 백엔드만
+make docker            # 둘 다
 ```
 
-`ghcr.io/lbw3973/dart-backend`, `-web` 두 이미지가 `VERSION`과 `latest` 태그로 올라간다.
+버전은 `Makefile`의 `WEB_VERSION` / `BACKEND_VERSION`을 각각 올린다.
 `t4g`(Graviton)가 ARM이므로 `linux/arm64`로 빌드한다.
 
 ### 2. 서버에 파일 전송
