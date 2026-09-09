@@ -6,9 +6,10 @@ WEB_VERSION     = 0.1.0
 LATEST          = latest
 PLATFORM        = linux/arm64
 
-# 카카오 JavaScript 키 (공개 키 — 도메인으로 제한된다)
+# 카카오 JavaScript 키 — 루트 .env 의 VITE_KAKAO_JS_KEY 를 읽는다.
+# 공개 키이고 도메인으로 제한되므로 번들에 들어가도 된다.
 # 콘솔: [앱] → [플랫폼 키] → [JavaScript 키]
-KAKAO_JS_KEY    =
+KAKAO_JS_KEY   ?= $(shell grep -sE '^VITE_KAKAO_JS_KEY=' .env | cut -d= -f2-)
 
 docker: docker-backend docker-web   ## 둘 다 빌드·푸시
 
