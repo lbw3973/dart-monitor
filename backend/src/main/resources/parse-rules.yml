@@ -1,0 +1,23 @@
+# 섹션 추출 룰 — AASSOCNOTE(문서 내 구조 ID)로 매칭한다.
+# AASSOCNOTE는 '서식 내 위치' 기반이라 서식이 다르면 같은 ID라도 의미가 다르다.
+#   예) 약식 D-1-4-0-0 = 변동[변경]사유,  일반 D-1-4-0-0 = 보유목적
+# expect(제목)는 검증용이며 불일치해도 실패시키지 않고 경고만 남긴다.
+dart:
+  rules:
+    MAJOR_HOLDING_SIMPLE:
+      scope: PART1
+      sections:
+        - { sectionNo: "3", id: "D-1-3-0-0", expect: "보유주식등의 수 및 보유비율" }
+        - { sectionNo: "4", id: "D-1-4-0-0", expect: "변동[변경]사유" }
+    MAJOR_HOLDING_GENERAL:
+      scope: PART1
+      sections:
+        - { sectionNo: "3", id: "D-1-3-0-0", expect: "보유주식등의 수 및 보유비율" }
+        - { sectionNo: "4", id: "D-1-4-0-0", expect: "보유목적" }
+        - { sectionNo: "5", id: "D-1-5-0-0", expect: "변동[변경]사유" }
+    EXEC_OWNERSHIP:
+      scope: DOCUMENT          # 부(部) 구조가 없어 문서 전체가 범위
+      sections:
+        - { sectionNo: "3", id: "D-0-1-3-1", expect: "가. 소유 특정증권등의 수 및 소유비율" }
+        - { sectionNo: "3", id: "D-0-1-3-2", expect: "나. 특정증권등의 종류별 소유내역" }
+        - { sectionNo: "3", id: "D-0-1-3-3", expect: "다. 세부변동내역" }
