@@ -13,8 +13,9 @@
 #   ./update.sh backfill 2026-09-01    과거 구간 소급 수집
 #   ./update.sh reparse                파싱 실패 건 재처리
 #
-# 배포한 버전은 설정 파일의 BACKEND_TAG / WEB_TAG 에 기록된다.
+# 배포한 버전은 compose 파일 옆의 deployed.env 에 기록된다.
 # 그래서 한쪽만 올려도 다른 쪽은 쓰던 버전 그대로 유지된다.
+# 비밀값 파일은 읽기만 하므로 root 소유(600)로 두어도 된다.
 #
 # 설정 파일 경로:
 #   DART_ENV=/opt/bwlee/etc/dart-monitor.env ./update.sh
@@ -47,24 +48,26 @@ else ENV_FILE="$SCRIPT_DIR/.env"; fi
 #	볼륨 이름이 디렉터리명에서 오므로 항상 같은 곳에서 실행한다
 cd "$(dirname "$COMPOSE_FILE")"
 
-if docker compose version >/dev/null 2>&1; then DC="docker compose --env-file $ENV_FILE -f $COMPOSE_FILE"
-elif command -v docker-compose >/dev/null 2>&1; then DC="docker-compose --env-file $ENV_FILE -f $COMPOSE_FILE"
+#	배포 상태(현재 태그)는 여기 기록한다. 비밀값 파일에는 쓰지 않는다.
+#	--env-file 을 두 번 주면 뒤엣것이 우선한다.
+STATE_FILE="$(dirname "$COMPOSE_FILE")/deployed.env"
+[ -f "$STATE_FILE" ] || printf 'BACKEND_TAG=latest\nWEB_TAG=latest\n' > "$STATE_FILE"
+
+ENV_ARGS="--env-file $ENV_FILE --env-file $STATE_FILE"
+if docker compose version >/dev/null 2>&1; then DC="docker compose $ENV_ARGS -f $COMPOSE_FILE"
+elif command -v docker-compose >/dev/null 2>&1; then DC="docker-compose $ENV_ARGS -f $COMPOSE_FILE"
 else echo "docker compose 를 찾지 못했습니다."; exit 1; fi
 
 # ── 설정 파일 읽기·쓰기 ────────────────────────────────────────
 
-get_env() { sed -n "s/^$1=//p" "$ENV_FILE" | head -1; }
+get_tag() { sed -n "s/^$1=//p" "$STATE_FILE" | head -1; }
 
-set_env() {   # key value — 없으면 추가한다
+set_tag() {   # key value — 상태 파일에만 쓴다
     local key="$1" val="$2" tmp
     tmp=$(mktemp)
-    if grep -q "^$key=" "$ENV_FILE"; then
-        sed "s|^$key=.*|$key=$val|" "$ENV_FILE" > "$tmp"
-    else
-        cat "$ENV_FILE" > "$tmp"
-        printf '%s=%s\n' "$key" "$val" >> "$tmp"
-    fi
-    cat "$tmp" > "$ENV_FILE"     # 권한·소유자 유지를 위해 덮어쓴다
+    grep -v "^$key=" "$STATE_FILE" > "$tmp" || true
+    printf '%s=%s\n' "$key" "$val" >> "$tmp"
+    cat "$tmp" > "$STATE_FILE"
     rm -f "$tmp"
 }
 
@@ -100,7 +103,7 @@ list_tags() {   # image-suffix (backend|web)
 
 choose_tag() {   # service — 현재 배포된 버전을 기본값으로 제시한다
     local svc="$1" cur tags i=1
-    cur=$(get_env "$([ "$svc" = backend ] && echo BACKEND_TAG || echo WEB_TAG)")
+    cur=$(get_tag "$([ "$svc" = backend ] && echo BACKEND_TAG || echo WEB_TAG)")
     tags=$(list_tags "$svc" || true)
 
     if [ -z "$tags" ]; then
@@ -130,7 +133,7 @@ deploy() {   # service tag
     [ -n "$tag" ] || { echo "태그가 비었습니다."; exit 1; }
     [ "$svc" = backend ] && key=BACKEND_TAG || key=WEB_TAG
 
-    set_env "$key" "$tag"
+    set_tag "$key" "$tag"
     export "$key=$tag"
 
     echo "== $IMAGE_BASE-$svc:$tag"
@@ -140,7 +143,7 @@ deploy() {   # service tag
 
 show_state() {
     echo
-    printf '  backend %s / web %s\n' "$(get_env BACKEND_TAG)" "$(get_env WEB_TAG)"
+    printf '  backend %s / web %s\n' "$(get_tag BACKEND_TAG)" "$(get_tag WEB_TAG)"
     $DC ps --format 'table {{.Service}}\t{{.Status}}' 2>/dev/null || $DC ps
 }
 

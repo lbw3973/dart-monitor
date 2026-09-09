@@ -13,5 +13,8 @@ frontend/dist/
 # 설계·구현 기록 (로컬 보관)
 /docs/
 
+# 배포 상태 (서버에서 생성됨)
+deployed.env
+
 # 오라클 재시도 로그
 oci-retry*.log
