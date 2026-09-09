@@ -11,6 +11,9 @@ COPY frontend/ ./
 # 빌드 시점에 번들에 들어가므로 이미지에 굽는다. 비밀값이 아니다.
 ARG VITE_KAKAO_JS_KEY=
 ENV VITE_KAKAO_JS_KEY=$VITE_KAKAO_JS_KEY
+# GA4 측정 ID도 마찬가지로 페이지에 노출되는 공개 식별자다.
+ARG VITE_GA_ID=
+ENV VITE_GA_ID=$VITE_GA_ID
 RUN pnpm build
 
 # ── 정적 서빙 + 리버스 프록시 ──

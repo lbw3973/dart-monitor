@@ -1,9 +1,11 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { trackPageView } from "./analytics";
 import {
   addBookmark, fetchBookmarks, fetchDetail, fetchDisclosures, fetchMe,
   KAKAO_LOGIN_URL, logout, removeBookmark,
 } from "./api";
+import { ConsentBanner } from "./components/ConsentBanner";
 import { DetailPane } from "./components/DetailPane";
 import { DisclosureList } from "./components/DisclosureList";
 import { FilterBar } from "./components/FilterBar";
@@ -68,6 +70,12 @@ export default function App() {
   useEffect(() => {
     document.title = newCount > 0 ? `(${newCount}) DART 지분공시` : "DART 지분공시";
   }, [newCount]);
+
+  // 히스토리에 쌓이는 이동(목록↔상세, 페이지, 탭)만 페이지뷰로 센다.
+  // 필터·검색어는 replaceState 라 의존성에 넣지 않는다 — 타이핑마다 집계되면 지표가 망가진다.
+  useEffect(() => {
+    trackPageView();
+  }, [tab, page, selected]);
 
   const bookmarkMutation = useMutation({
     mutationFn: ({ rceptNo, marked }: { rceptNo: string; marked: boolean }) =>
@@ -189,6 +197,7 @@ export default function App() {
       </main>
 
       <Toast message={toast} onDismiss={() => setToast(null)} />
+      <ConsentBanner />
     </div>
   );
 }
