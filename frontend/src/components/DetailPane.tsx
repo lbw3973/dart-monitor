@@ -2,6 +2,7 @@ import DOMPurify from "dompurify";
 import { useMemo } from "react";
 import type { DisclosureDetail, Section } from "../types";
 import { REPORT_TYPE_LABEL, REPORT_TYPE_STYLE } from "../types";
+import { ShareMenu } from "./ShareMenu";
 import { StarButton } from "./StarButton";
 
 interface Props {
@@ -10,9 +11,10 @@ interface Props {
   error: unknown;
   onToggleBookmark: () => void;
   onBack: () => void;
+  onNotice: (msg: string) => void;
 }
 
-export function DetailPane({ detail, loading, error, onToggleBookmark, onBack }: Props) {
+export function DetailPane({ detail, loading, error, onToggleBookmark, onBack, onNotice }: Props) {
   if (loading) return <Placeholder text="불러오는 중…" />;
   if (error) return <Placeholder text="상세를 불러오지 못했습니다." />;
   if (!detail) return <Placeholder text="왼쪽 목록에서 공시를 선택하세요." />;
@@ -41,14 +43,17 @@ export function DetailPane({ detail, loading, error, onToggleBookmark, onBack }:
               정정
             </span>
           )}
-          <a
-            href={d.dartUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="ml-auto text-xs text-sky-600 hover:underline dark:text-sky-400"
-          >
-            DART 원문 ↗
-          </a>
+          <div className="ml-auto flex items-center gap-2">
+            <ShareMenu disclosure={d} onNotice={onNotice} />
+            <a
+              href={d.dartUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs whitespace-nowrap text-sky-600 hover:underline dark:text-sky-400"
+            >
+              DART 원문 ↗
+            </a>
+          </div>
         </div>
 
         <h2 className="text-base font-semibold text-slate-900 dark:text-slate-50">

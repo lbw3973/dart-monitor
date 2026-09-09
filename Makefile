@@ -6,6 +6,10 @@ WEB_VERSION     = 0.1.0
 LATEST          = latest
 PLATFORM        = linux/arm64
 
+# 카카오 JavaScript 키 (공개 키 — 도메인으로 제한된다)
+# 콘솔: [앱] → [플랫폼 키] → [JavaScript 키]
+KAKAO_JS_KEY    =
+
 docker: docker-backend docker-web   ## 둘 다 빌드·푸시
 
 docker-backend:                     ## 백엔드만
@@ -16,6 +20,7 @@ docker-backend:                     ## 백엔드만
 
 docker-web:                         ## 프론트만
 	docker build --platform $(PLATFORM) \
+		--build-arg VITE_KAKAO_JS_KEY=$(KAKAO_JS_KEY) \
 		-t $(IMAGE_NAME)-web:$(WEB_VERSION) \
 		-t $(IMAGE_NAME)-web:$(LATEST) \
 		--push -f ./deploy/Dockerfile.web .

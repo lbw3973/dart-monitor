@@ -6,6 +6,10 @@ RUN corepack enable
 COPY frontend/package.json frontend/pnpm-lock.yaml* ./
 RUN pnpm install --frozen-lockfile || pnpm install
 COPY frontend/ ./
+# 카카오 JavaScript 키는 브라우저에 노출되는 공개 키다(도메인으로 제한됨).
+# 빌드 시점에 번들에 들어가므로 이미지에 굽는다. 비밀값이 아니다.
+ARG VITE_KAKAO_JS_KEY=
+ENV VITE_KAKAO_JS_KEY=$VITE_KAKAO_JS_KEY
 RUN pnpm build
 
 # ── 정적 서빙 + 리버스 프록시 ──
