@@ -29,12 +29,22 @@ else
 fi
 
 log "Docker 설치"
+# root(또는 sudo)로 실행되면 $USER 가 root 라 엉뚱한 계정이 그룹에 들어간다.
+# 실제 로그인 계정을 찾아 docker 그룹에 넣는다.
+TARGET_USER="${SUDO_USER:-$USER}"
+[ "$TARGET_USER" = "root" ] && TARGET_USER="$(logname 2>/dev/null || echo ubuntu)"
+
 if ! command -v docker >/dev/null; then
     curl -fsSL https://get.docker.com | sudo sh
-    sudo usermod -aG docker "$USER"
-    echo "  설치 완료 — 그룹 반영을 위해 재로그인이 필요합니다"
 else
     echo "  이미 설치됨: $(docker --version)"
+fi
+
+if id -nG "$TARGET_USER" 2>/dev/null | grep -qw docker; then
+    echo "  $TARGET_USER 는 이미 docker 그룹"
+else
+    sudo usermod -aG docker "$TARGET_USER"
+    echo "  $TARGET_USER 를 docker 그룹에 추가 — 재로그인해야 반영됩니다"
 fi
 
 log "방화벽 (ufw)"
@@ -52,4 +62,4 @@ free -h | head -2
 echo
 df -h / | tail -1
 echo
-echo "다음: 재로그인 후  docker ps  가 sudo 없이 되는지 확인하세요."
+echo "다음: 재로그인 후  docker ps  가 sudo 없이 되는지 확인하세요. (대상 계정: $TARGET_USER)"

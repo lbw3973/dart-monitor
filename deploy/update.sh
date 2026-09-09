@@ -3,16 +3,33 @@ set -euo pipefail
 REGISTRY="${DART_REGISTRY:-ghcr.io}"
 OWNER="${DART_OWNER:-lbw3973}"
 IMAGE_BASE="${DART_IMAGE_BASE:-dart}"
-COMPOSE_FILE="${DART_COMPOSE:-$(cd "$(dirname "$0")" && pwd)/docker-compose.deploy.yml}"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+COMPOSE_FILE="${DART_COMPOSE:-$SCRIPT_DIR/docker-compose.deploy.yml}"
 TOKEN_FILE="${GHCR_TOKEN_FILE:-$HOME/.config/ghcr-token}"
 
+#	설정 파일 탐색
+if [ -n "${DART_ENV:-}" ]; then
+    ENV_FILE="$DART_ENV"
+elif [ -f /opt/bwlee/etc/dart-monitor.env ]; then
+    ENV_FILE=/opt/bwlee/etc/dart-monitor.env
+else
+    ENV_FILE="$SCRIPT_DIR/.env"
+fi
+
+[ -f "$COMPOSE_FILE" ] || { echo "compose 파일이 없습니다: $COMPOSE_FILE"; exit 1; }
+[ -f "$ENV_FILE" ]     || { echo "설정 파일이 없습니다: $ENV_FILE"; exit 1; }
+
+#	볼륨 이름이 디렉터리명에서 오므로 항상 같은 곳에서 실행한다
 cd "$(dirname "$COMPOSE_FILE")"
 
-if docker compose version >/dev/null 2>&1; then DC="docker compose -f $COMPOSE_FILE"
-elif command -v docker-compose >/dev/null 2>&1; then DC="docker-compose -f $COMPOSE_FILE"
-else echo "docker compose 를 찾지 못했습니다."; exit 1; fi
-
-[ -f .env ] || { echo ".env 가 없습니다: $(pwd)/.env"; exit 1; }
+# --env-file 은 compose 의 변수 치환에 쓰인다 (${DOMAIN} 등)
+if docker compose version >/dev/null 2>&1; then
+    DC="docker compose --env-file $ENV_FILE -f $COMPOSE_FILE"
+elif command -v docker-compose >/dev/null 2>&1; then
+    DC="docker-compose --env-file $ENV_FILE -f $COMPOSE_FILE"
+else
+    echo "docker compose 를 찾지 못했습니다."; exit 1
+fi
 
 #	GHCR 태그 목록. 실패해도 스크립트를 죽이지 않는다(직접 입력으로 넘어간다).
 ghcr_token() {
@@ -66,6 +83,7 @@ deploy() {
 
     export IMAGE_TAG="$tag"
     echo
+    echo "== 설정: $ENV_FILE"
     echo "== ${IMAGE_BASE}-{backend,web}:$tag 받는 중"
     $DC pull
 
