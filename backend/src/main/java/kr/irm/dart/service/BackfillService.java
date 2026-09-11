@@ -16,14 +16,15 @@ import java.util.List;
 /**
  * 과거 구간 소급 수집.
  *
- * 평상시 폴러는 최근 2일만 본다(쿼터 절약). 그래서 하루를 넘겨 중단되면 그 사이가 빈다.
+ * 평상시 폴러는 접수 시간대(평일 07:00~19:30)에만, 그날 하루만 본다.
+ * 그래서 하루를 넘겨 중단되면 그 사이가 빈다.
  * 이 서비스가 그 공백을 메운다 — 기동 시 자동, 또는 관리자 API로 수동.
  */
 @Service
 public class BackfillService {
 
     private static final Logger log = LoggerFactory.getLogger(BackfillService.class);
-    private static final int MAX_PAGES_PER_DAY = 20;   // 하루 2,000건 상한
+    private static final int MAX_PAGES_PER_DAY = 50;   // 폭주 방지 안전망 (하루 5,000건)
 
     private final DartApiClient client;
     private final IngestService ingest;
@@ -40,7 +41,8 @@ public class BackfillService {
 
     /**
      * 지정 구간을 하루 단위로 훑는다.
-     * 하루씩 끊는 이유: 구간이 길면 한 번에 수천 건이라 페이지 상한에 걸려 조용히 누락된다.
+     * 하루씩 끊는 이유: 공시검색 API가 corp_code 없이는 3개월까지만 조회를 허용하고,
+     * 구간이 길수록 한 번에 수천 건이라 페이지 상한에 가까워진다.
      */
     public Result run(LocalDate from, LocalDate to) {
         if (from.isAfter(to)) throw new IllegalArgumentException("from이 to보다 늦습니다");
@@ -50,23 +52,23 @@ public class BackfillService {
         int fetched = 0, inserted = 0;
         for (LocalDate d = from; !d.isAfter(to); d = d.plusDays(1)) {
             for (String detailTy : props.detailTypes()) {
-                for (int page = 1; page <= MAX_PAGES_PER_DAY; page++) {
-                    List<DartApiClient.ListItem> items;
-                    try {
-                        items = client.searchDisclosures(d, d, detailTy, page);
-                    } catch (Exception e) {
-                        log.error("백필 조회 실패 {} {} page={} — 건너뜀", d, detailTy, page, e);
-                        break;
+                List<Disclosure> saved = new ArrayList<>();
+                try {
+                    var scan = client.eachPage(d, d, detailTy, MAX_PAGES_PER_DAY, items -> {
+                        List<Disclosure> fresh = ingest.saveNew(items);
+                        saved.addAll(fresh);
+                        fresh.forEach(fetcher::submit);   // 원본 다운로드는 비동기 큐로.
+                                                          // 뒤 페이지에서 실패해도 여기까지는 살린다
+                    });
+                    fetched += scan.items();
+                    if (scan.capped()) {
+                        log.error("백필 페이지 상한({}) 도달 {} {} — 뒤쪽 누락",
+                                MAX_PAGES_PER_DAY, d, detailTy);
                     }
-                    if (items.isEmpty()) break;
-                    fetched += items.size();
-
-                    List<Disclosure> saved = new ArrayList<>(ingest.saveNew(items));
-                    inserted += saved.size();
-                    saved.forEach(fetcher::submit);      // 원본 다운로드는 비동기 큐로
-
-                    if (items.size() < 100) break;
+                } catch (Exception e) {
+                    log.error("백필 조회 실패 {} {} — 건너뜀", d, detailTy, e);
                 }
+                inserted += saved.size();
             }
         }
         log.info("백필 완료 {} ~ {} — 조회 {}건, 신규 {}건", from, to, fetched, inserted);

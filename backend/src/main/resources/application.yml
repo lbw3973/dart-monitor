@@ -24,7 +24,13 @@ dart:
   base-url: https://opendart.fss.or.kr/api
   detail-types: [D001, D002]
   poll-interval: 60s
-  lookback-days: 1                # 평상시 조회 창 (자정 경계 유실 방지)
+  # DART 전자접수는 평일 07:30~19:00뿐이다. 그 밖의 폴링은 전부 헛돈다.
+  # 따옴표 필수 — YAML이 07:00을 60진수 정수(420)로 읽는다.
+  active-from: "07:00"
+  active-to: "19:30"              # 당일접수 마감(18:00) 후 90분 여유
+  weekend-poll: false
+  morning-lookback-days: 3        # 그날 첫 폴링만 이만큼 거슬러 조회 (월요일이면 금·토·일)
+  lookback-days: 1                # 기동 캐치업이 '폴러가 자력으로 메울 수 있는 범위'로 삼는 일수
   catch-up-max-days: 30           # 기동 시 소급 상한. 0이면 비활성
   raw-dir: ${DART_RAW_DIR:./raw}
   fetch-concurrency: 2
