@@ -155,6 +155,7 @@ public class Disclosure {
     public int getRetryCount() { return retryCount; }
     public String getRawFilePath() { return rawFilePath; }
     public String getStockCode() { return stockCode; }
+    public String getCorpCls() { return corpCls; }
     public String getParseError() { return parseError; }
     public java.time.Instant getParsedAt() { return parsedAt; }
 }

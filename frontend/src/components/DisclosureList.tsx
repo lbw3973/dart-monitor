@@ -1,5 +1,5 @@
 import type { DisclosureSummary } from "../types";
-import { REPORT_TYPE_LABEL, REPORT_TYPE_STYLE } from "../types";
+import { CORP_CLS_LABEL, CORP_CLS_STYLE, REPORT_TYPE_LABEL, REPORT_TYPE_STYLE } from "../types";
 import { StarButton } from "./StarButton";
 
 interface Props {
@@ -57,8 +57,13 @@ export function DisclosureList({ items, selected, loading, emptyText, onSelect, 
 
               <div className="truncate text-sm font-medium text-slate-800 dark:text-slate-100">
                 {d.corpName}
+                {d.corpCls && (
+                  <span className={`ml-1.5 text-[10px] font-medium ${CORP_CLS_STYLE[d.corpCls]}`}>
+                    {CORP_CLS_LABEL[d.corpCls]}
+                  </span>
+                )}
                 {d.stockCode && (
-                  <span className="ml-1.5 text-[10px] font-normal tabular-nums text-slate-400">
+                  <span className="ml-1 text-[10px] font-normal tabular-nums text-slate-400">
                     {d.stockCode}
                   </span>
                 )}
