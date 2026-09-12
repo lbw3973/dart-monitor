@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Group, ReportType } from "./types";
-import { groupOf } from "./types";
+import { DEFAULT_GROUP, groupOf } from "./types";
 
 export type Tab = "all" | "saved";
 
 export interface ViewState {
   tab: Tab;
-  /** 1단: 공시 그룹. 비어 있으면 전체 */
-  group: Group | "";
+  /** 1단: 공시 그룹. 항상 하나가 선택돼 있다 */
+  group: Group;
   /** 2단: 상세 유형. 비어 있으면 그룹 전체 */
   type: ReportType | "";
   q: string;
@@ -33,8 +33,8 @@ function parse(search: string): ViewState {
   const type = (p.get("type") as ReportType) ?? "";
   return {
     tab: p.get("tab") === "saved" ? "saved" : "all",
-    // group 없이 type만 담긴 공유 링크도 2단 드롭다운이 올바르게 열리도록 되짚는다
-    group: (p.get("group") as Group) || groupOf(type),
+    // group 없이 type만 담긴 공유 링크도 2단이 올바르게 열리도록 유형에서 되짚는다
+    group: (p.get("group") as Group) ?? groupOf(type),
     type,
     q: p.get("q") ?? "",
     from: p.get("from") ?? range.from,
@@ -49,9 +49,12 @@ function stringify(s: ViewState): string {
   const range = defaultRange();
   const p = new URLSearchParams();
   if (s.tab !== "all") p.set("tab", s.tab);
-  // type이 있으면 group은 되짚을 수 있으므로 URL에 싣지 않는다 (주소를 짧게)
-  if (s.group && !s.type) p.set("group", s.group);
-  if (s.type) p.set("type", s.type);
+  // 저장목록은 유형·날짜 필터를 적용하지 않으므로 주소에도 싣지 않는다
+  if (s.tab === "all") {
+    // type이 있으면 group을 되짚을 수 있고, 기본 그룹도 생략한다 (주소를 짧게)
+    if (s.group !== DEFAULT_GROUP && !s.type) p.set("group", s.group);
+    if (s.type) p.set("type", s.type);
+  }
   if (s.q.trim()) p.set("q", s.q.trim());
   if (s.from !== range.from) p.set("from", s.from);
   if (s.to !== range.to) p.set("to", s.to);
@@ -111,7 +114,7 @@ export function useUrlState() {
   /** 헤더 로고 — 필터·선택을 모두 비우고 처음 화면으로 */
   const goHome = useCallback(() => {
     const range = defaultRange();
-    update({ tab: "all", group: "", type: "", q: "", ...range, page: 0, selected: null });
+    update({ tab: "all", group: DEFAULT_GROUP, type: "", q: "", ...range, page: 0, selected: null });
   }, [update]);
 
   return { state, update, goBack, goHome, depth } as const;

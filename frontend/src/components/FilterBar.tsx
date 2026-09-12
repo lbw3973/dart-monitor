@@ -4,7 +4,7 @@ import type { Group, Me, ReportType } from "../types";
 import { GROUP_LABEL, GROUP_TYPES, REPORT_TYPE_LABEL } from "../types";
 
 interface Props {
-  group: Group | "";
+  group: Group;
   type: ReportType | "";
   q: string;
   from: string;
@@ -15,7 +15,7 @@ interface Props {
   me: Me | undefined;
   tab: "all" | "saved";
   onChange: (patch: {
-    group?: Group | "";
+    group?: Group;
     type?: ReportType | "";
     q?: string;
     from?: string;
@@ -67,9 +67,9 @@ export function FilterBar({
           ))}
         </div>
 
-        {/* 데스크톱: 필터를 1행에 펼친다 */}
+        {/* 데스크톱: 날짜·검색을 1행에 펼친다. 그룹 탭은 2행 전용이다 */}
         <div className="hidden flex-wrap items-center gap-2 lg:flex">
-          <FilterInputs group={group} type={type} q={q} from={from} to={to} onChange={onChange} />
+          <DateSearch q={q} from={from} to={to} onChange={onChange} />
         </div>
 
         <div className="ml-auto flex shrink-0 items-center gap-2">
@@ -130,10 +130,45 @@ export function FilterBar({
         </div>
       </div>
 
-      {/* 2행: 모바일에서만, 토글로 펼친다 */}
+      {/* 2행: 공시 그룹 탭 + 상세 유형. 저장목록은 필터를 적용하지 않으므로 감춘다 */}
+      {tab === "all" && (
+        <div className="flex items-center gap-2 border-t border-slate-100 px-3 py-1.5 sm:px-4 dark:border-slate-800">
+          <div className="flex shrink-0 rounded bg-slate-100 p-0.5 dark:bg-slate-800">
+            {GROUPS.map(g => (
+              <button
+                key={g}
+                onClick={() => onChange({ group: g, type: "" })}
+                className={`rounded px-2.5 py-1 text-xs font-medium whitespace-nowrap transition ${
+                  group === g
+                    ? "bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-slate-50"
+                    : "text-slate-500 hover:text-slate-700 dark:text-slate-400"
+                }`}
+              >
+                {GROUP_LABEL[g]}
+              </button>
+            ))}
+          </div>
+
+          <select
+            value={type}
+            onChange={e => onChange({ type: e.target.value as ReportType | "" })}
+            className={INPUT}
+            aria-label="상세 유형"
+          >
+            <option value="">{GROUP_LABEL[group]} 전체</option>
+            {GROUP_TYPES[group].map(t => (
+              <option key={t} value={t}>
+                {REPORT_TYPE_LABEL[t]}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {/* 3행: 모바일에서만, 토글로 펼친다 */}
       {open && (
         <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 px-3 py-2 lg:hidden dark:border-slate-800">
-          <FilterInputs group={group} type={type} q={q} from={from} to={to} onChange={onChange} />
+          <DateSearch q={q} from={from} to={to} onChange={onChange} />
           <span className="ml-auto text-xs text-slate-500">{total.toLocaleString()}건</span>
         </div>
       )}
@@ -141,43 +176,11 @@ export function FilterBar({
   );
 }
 
-function FilterInputs({
-  group, type, q, from, to, onChange,
-}: Pick<Props, "group" | "type" | "q" | "from" | "to" | "onChange">) {
+function DateSearch({
+  q, from, to, onChange,
+}: Pick<Props, "q" | "from" | "to" | "onChange">) {
   return (
     <>
-      {/* 1단 — 공시 그룹. 바꾸면 2단을 비운다 (그룹 간 유형이 호환되지 않는다) */}
-      <select
-        value={group}
-        onChange={e => onChange({ group: e.target.value as Group | "", type: "" })}
-        className={INPUT}
-        aria-label="공시 그룹"
-      >
-        <option value="">전체 공시</option>
-        {GROUPS.map(g => (
-          <option key={g} value={g}>
-            {GROUP_LABEL[g]}
-          </option>
-        ))}
-      </select>
-
-      {/* 2단 — 상세 유형. 그룹을 고르지 않았으면 고를 것이 없으므로 감춘다 */}
-      {group && (
-        <select
-          value={type}
-          onChange={e => onChange({ type: e.target.value as ReportType | "" })}
-          className={INPUT}
-          aria-label="상세 유형"
-        >
-          <option value="">{GROUP_LABEL[group]} 전체</option>
-          {GROUP_TYPES[group].map(t => (
-            <option key={t} value={t}>
-              {REPORT_TYPE_LABEL[t]}
-            </option>
-          ))}
-        </select>
-      )}
-
       <input type="date" value={from} onChange={e => onChange({ from: e.target.value })} className={INPUT} />
       <span className="text-xs text-slate-400">~</span>
       <input type="date" value={to} onChange={e => onChange({ to: e.target.value })} className={INPUT} />

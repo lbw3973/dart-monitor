@@ -4,8 +4,8 @@ import { GROUP_TYPES } from "./types";
 export interface SearchParams {
   /** 상세 유형. 지정되면 group보다 우선한다. */
   type?: ReportType | "";
-  /** 그룹만 지정된 경우(상세=전체) 그룹에 속한 유형 전체를 조회한다. */
-  group?: Group | "";
+  /** 상세를 고르지 않았으면(그룹 전체) 그룹에 속한 유형 전체를 조회한다. */
+  group?: Group;
   q?: string;
   from?: string;
   to?: string;

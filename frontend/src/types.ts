@@ -88,7 +88,14 @@ export const REPORT_TYPE_STYLE: Record<ReportType, string> = {
 
 /* ── 공시 그룹 (화면의 1단 드롭다운) ── */
 
+/**
+ * 공시 그룹. 두 그룹을 함께 보는 "전체"는 두지 않는다 —
+ * 서식 성격과 보여주는 섹션이 전혀 달라 섞어 놓으면 목록을 훑기 어렵다.
+ */
 export type Group = "equity" | "periodic";
+
+/** 기본 그룹. 이 서비스가 처음부터 다루던 쪽이다. */
+export const DEFAULT_GROUP: Group = "equity";
 
 export const GROUP_LABEL: Record<Group, string> = {
   equity: "5%·임원보고",
@@ -102,11 +109,8 @@ export const GROUP_TYPES: Record<Group, ReportType[]> = {
 };
 
 /** 특정 유형이 속한 그룹. 공유 링크로 type만 들어온 경우 그룹을 되짚는 데 쓴다. */
-export function groupOf(type: ReportType | ""): Group | "" {
-  if (!type) return "";
-  return GROUP_TYPES.periodic.includes(type) ? "periodic"
-       : GROUP_TYPES.equity.includes(type) ? "equity"
-       : "";
+export function groupOf(type: ReportType | ""): Group {
+  return type && GROUP_TYPES.periodic.includes(type) ? "periodic" : DEFAULT_GROUP;
 }
 
 export const CORP_CLS_LABEL: Record<CorpCls, string> = {
