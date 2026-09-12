@@ -54,8 +54,8 @@ services:
         limits:
           memory: 900M
 
-  web:
-    image: ${IMAGE_NAME}-web:${WEB_TAG:-latest}
+  frontend:
+    image: ${IMAGE_NAME}-frontend:${FRONTEND_TAG:-latest}
     restart: unless-stopped
     depends_on: [backend]
     environment:

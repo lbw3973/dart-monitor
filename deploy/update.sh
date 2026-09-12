@@ -7,7 +7,7 @@
 #
 #   ./update.sh                        둘 다 — 각각 버전을 고른다
 #   ./update.sh backend                백엔드만 — 버전을 고른다
-#   ./update.sh web 0.3.0              프론트만 0.3.0 으로
+#   ./update.sh frontend 0.3.0         프론트만 0.3.0 으로
 #   ./update.sh all 0.2.0              둘 다 0.2.0 으로
 #   ./update.sh status | down | logs
 #   ./update.sh backfill 2026-09-01    과거 구간 소급 수집
@@ -51,7 +51,7 @@ cd "$(dirname "$COMPOSE_FILE")"
 #	배포 상태(현재 태그)는 여기 기록한다. 비밀값 파일에는 쓰지 않는다.
 #	--env-file 을 두 번 주면 뒤엣것이 우선한다.
 STATE_FILE="$(dirname "$COMPOSE_FILE")/deployed.env"
-[ -f "$STATE_FILE" ] || printf 'BACKEND_TAG=latest\nWEB_TAG=latest\n' > "$STATE_FILE"
+[ -f "$STATE_FILE" ] || printf 'BACKEND_TAG=latest\nFRONTEND_TAG=latest\n' > "$STATE_FILE"
 
 ENV_ARGS="--env-file $ENV_FILE --env-file $STATE_FILE"
 if docker compose version >/dev/null 2>&1; then DC="docker compose $ENV_ARGS -f $COMPOSE_FILE"
@@ -89,7 +89,7 @@ except Exception:
 PYEOF
 }
 
-list_tags() {   # image-suffix (backend|web)
+list_tags() {   # image-suffix (backend|frontend)
     local pat
     pat=$(ghcr_token) || true
     [ -n "${pat:-}" ] || return 1
@@ -103,7 +103,7 @@ list_tags() {   # image-suffix (backend|web)
 
 choose_tag() {   # service — 현재 배포된 버전을 기본값으로 제시한다
     local svc="$1" cur tags i=1
-    cur=$(get_tag "$([ "$svc" = backend ] && echo BACKEND_TAG || echo WEB_TAG)")
+    cur=$(get_tag "$([ "$svc" = backend ] && echo BACKEND_TAG || echo FRONTEND_TAG)")
     tags=$(list_tags "$svc" || true)
 
     if [ -z "$tags" ]; then
@@ -131,7 +131,7 @@ choose_tag() {   # service — 현재 배포된 버전을 기본값으로 제시
 deploy() {   # service tag
     local svc="$1" tag="$2" key
     [ -n "$tag" ] || { echo "태그가 비었습니다."; exit 1; }
-    [ "$svc" = backend ] && key=BACKEND_TAG || key=WEB_TAG
+    [ "$svc" = backend ] && key=BACKEND_TAG || key=FRONTEND_TAG
 
     set_tag "$key" "$tag"
     export "$key=$tag"
@@ -143,7 +143,7 @@ deploy() {   # service tag
 
 show_state() {
     echo
-    printf '  backend %s / web %s\n' "$(get_tag BACKEND_TAG)" "$(get_tag WEB_TAG)"
+    printf '  backend %s / frontend %s\n' "$(get_tag BACKEND_TAG)" "$(get_tag FRONTEND_TAG)"
     $DC ps --format 'table {{.Service}}\t{{.Status}}' 2>/dev/null || $DC ps
 }
 
@@ -152,14 +152,14 @@ admin_api() { $DC exec -T backend sh -c "wget -qO- --post-data='' 'http://localh
 # ── 명령 ───────────────────────────────────────────────────────
 
 case "${1:-}" in
-    backend|web)
+    backend|frontend)
         deploy "$1" "${2:-$(choose_tag "$1")}"
         show_state ;;
     all)
         TAG="${2:-}"
         [ -n "$TAG" ] || { echo "사용법: $0 all <태그>"; exit 1; }
         deploy backend "$TAG"
-        deploy web     "$TAG"
+        deploy frontend "$TAG"
         show_state ;;
     backfill)
         [ -n "${2:-}" ] || { echo "사용법: $0 backfill 2026-09-01 [2026-09-09]"; exit 1; }
@@ -175,7 +175,7 @@ case "${1:-}" in
     logs)   exec $DC logs -f --tail=100 backend ;;
     "")
         deploy backend "$(choose_tag backend)"
-        deploy web     "$(choose_tag web)"
+        deploy frontend "$(choose_tag frontend)"
         show_state ;;
     *) echo "알 수 없는 명령: $1  ($0 --help)"; exit 1 ;;
 esac

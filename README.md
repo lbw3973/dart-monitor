@@ -46,12 +46,12 @@ cd frontend && pnpm install && pnpm dev                             # ③ 프론
 키가 없으면 카카오 버튼만 숨겨지고 나머지는 그대로 동작한다.
 
 ```bash
-make docker-web        # 프론트만
+make docker-frontend   # 프론트만
 make docker-backend    # 백엔드만
 make docker            # 둘 다
 ```
 
-버전은 `Makefile`의 `WEB_VERSION` / `BACKEND_VERSION`을 각각 올린다.
+버전은 `Makefile`의 `FRONTEND_VERSION` / `BACKEND_VERSION`을 각각 올린다.
 `t4g`(Graviton)가 ARM이므로 `linux/arm64`로 빌드한다.
 
 ### 2. 서버에 파일 전송
