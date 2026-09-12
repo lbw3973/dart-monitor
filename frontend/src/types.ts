@@ -1,7 +1,12 @@
 export type ReportType =
+  /* 지분공시 */
   | "MAJOR_HOLDING_SIMPLE"
   | "MAJOR_HOLDING_GENERAL"
   | "EXEC_OWNERSHIP"
+  /* 정기공시 */
+  | "BUSINESS_REPORT"
+  | "HALF_YEAR_REPORT"
+  | "QUARTER_REPORT"
   | "OTHER";
 
 export type ParseStatus =
@@ -60,15 +65,49 @@ export const REPORT_TYPE_LABEL: Record<ReportType, string> = {
   MAJOR_HOLDING_SIMPLE: "대량보유(약식)",
   MAJOR_HOLDING_GENERAL: "대량보유(일반)",
   EXEC_OWNERSHIP: "임원·주요주주",
+  BUSINESS_REPORT: "사업보고서",
+  HALF_YEAR_REPORT: "반기보고서",
+  QUARTER_REPORT: "분기보고서",
   OTHER: "기타",
 };
 
+/**
+ * 지분공시는 한색(sky·indigo·emerald), 정기공시는 난색(amber·orange·rose)으로 묶는다.
+ * 목록에서 두 그룹이 섞여 보이므로 계열로 구분되면 훑기 쉽다.
+ * 정정 배지도 amber를 쓰지만 그쪽은 테두리 없는 작은 딱지라 혼동되지 않는다.
+ */
 export const REPORT_TYPE_STYLE: Record<ReportType, string> = {
   MAJOR_HOLDING_SIMPLE: "bg-sky-100 text-sky-800 dark:bg-sky-900 dark:text-sky-200",
   MAJOR_HOLDING_GENERAL: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200",
   EXEC_OWNERSHIP: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200",
+  BUSINESS_REPORT: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
+  HALF_YEAR_REPORT: "bg-amber-100 text-amber-900 dark:bg-amber-900 dark:text-amber-100",
+  QUARTER_REPORT: "bg-rose-100 text-rose-800 dark:bg-rose-900 dark:text-rose-200",
   OTHER: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
 };
+
+/* ── 공시 그룹 (화면의 1단 드롭다운) ── */
+
+export type Group = "equity" | "periodic";
+
+export const GROUP_LABEL: Record<Group, string> = {
+  equity: "5%·임원보고",
+  periodic: "정기공시",
+};
+
+/** 그룹별 상세 유형. 2단 드롭다운의 항목이고, 순서가 곧 표시 순서다. */
+export const GROUP_TYPES: Record<Group, ReportType[]> = {
+  equity: ["MAJOR_HOLDING_SIMPLE", "MAJOR_HOLDING_GENERAL", "EXEC_OWNERSHIP"],
+  periodic: ["BUSINESS_REPORT", "HALF_YEAR_REPORT", "QUARTER_REPORT"],
+};
+
+/** 특정 유형이 속한 그룹. 공유 링크로 type만 들어온 경우 그룹을 되짚는 데 쓴다. */
+export function groupOf(type: ReportType | ""): Group | "" {
+  if (!type) return "";
+  return GROUP_TYPES.periodic.includes(type) ? "periodic"
+       : GROUP_TYPES.equity.includes(type) ? "equity"
+       : "";
+}
 
 export const CORP_CLS_LABEL: Record<CorpCls, string> = {
   Y: "코스피",

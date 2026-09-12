@@ -36,8 +36,10 @@ export function DisclosureList({ items, selected, loading, emptyText, onSelect, 
                 <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${REPORT_TYPE_STYLE[d.reportType]}`}>
                   {REPORT_TYPE_LABEL[d.reportType]}
                 </span>
+                {/* 정정은 유형이 아니라 수식어다. 유형 배지(채움)와 종류가 다르게 보이도록
+                    테두리로 둔다 — 정기공시 배지가 난색이라 채운 배지로는 색이 겹쳤다. */}
                 {d.correction && (
-                  <span className="shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800 dark:bg-amber-900 dark:text-amber-200">
+                  <span className="shrink-0 rounded border border-amber-500/60 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:border-amber-500/50 dark:text-amber-300">
                     정정
                   </span>
                 )}

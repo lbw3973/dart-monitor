@@ -22,7 +22,9 @@ export default function App() {
   // 이전 화면(목록·이전 페이지)으로 돌아간다.
   const { state: view, update: setView, goBack, goHome } = useUrlState();
   const { tab, page, selected } = view;
-  const filters = { type: view.type, q: view.q, from: view.from, to: view.to };
+  const filters = {
+    group: view.group, type: view.type, q: view.q, from: view.from, to: view.to,
+  };
 
   const [debouncedQ, setDebouncedQ] = useState(view.q);
   const [live, setLive] = useState(true);
@@ -50,7 +52,7 @@ export default function App() {
   });
 
   const listQuery = useQuery({
-    queryKey: ["disclosures", tab, filters.type, debouncedQ, filters.from, filters.to, page],
+    queryKey: ["disclosures", tab, filters.group, filters.type, debouncedQ, filters.from, filters.to, page],
     queryFn: () =>
       tab === "saved"
         ? fetchBookmarks(page, 50)

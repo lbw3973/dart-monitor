@@ -30,7 +30,7 @@ public class DisclosureQueryService {
     }
 
     @Transactional(readOnly = true)
-    public PageResponse<DisclosureSummary> search(ReportType type, LocalDate from, LocalDate to,
+    public PageResponse<DisclosureSummary> search(List<ReportType> types, LocalDate from, LocalDate to,
                                                   String q, ParseStatus status, int page, int size,
                                                   AppUser user) {
         Pageable pageable = PageRequest.of(
@@ -40,7 +40,8 @@ public class DisclosureQueryService {
 
         Specification<Disclosure> spec = (root, query, cb) -> {
             List<Predicate> ps = new ArrayList<>();
-            if (type != null)   ps.add(cb.equal(root.get("reportType"), type));
+            // 그룹(5%·임원보고 / 정기공시) 전체를 고르면 여러 유형이 함께 온다
+            if (types != null && !types.isEmpty()) ps.add(root.get("reportType").in(types));
             if (status != null) ps.add(cb.equal(root.get("parseStatus"), status));
             if (from != null)   ps.add(cb.greaterThanOrEqualTo(root.get("rceptDt"), from));
             if (to != null)     ps.add(cb.lessThanOrEqualTo(root.get("rceptDt"), to));

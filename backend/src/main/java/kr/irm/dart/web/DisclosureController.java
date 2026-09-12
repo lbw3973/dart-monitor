@@ -13,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/disclosures")
@@ -26,7 +27,8 @@ public class DisclosureController {
 
     @GetMapping
     public PageResponse<DisclosureSummary> list(
-            @RequestParam(required = false) ReportType type,
+            // 반복 지정 가능 — type=A&type=B. 그룹 전체 조회에 쓴다.
+            @RequestParam(required = false) List<ReportType> type,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             @RequestParam(required = false) String q,

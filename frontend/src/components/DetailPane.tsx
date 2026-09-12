@@ -39,7 +39,7 @@ export function DetailPane({ detail, loading, error, onToggleBookmark, onBack, o
             {REPORT_TYPE_LABEL[d.reportType]}
           </span>
           {d.correction && (
-            <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800 dark:bg-amber-900 dark:text-amber-200">
+            <span className="rounded border border-amber-500/60 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:border-amber-500/50 dark:text-amber-300">
               정정
             </span>
           )}
@@ -89,7 +89,7 @@ export function DetailPane({ detail, loading, error, onToggleBookmark, onBack, o
                 {title}
               </h3>
               {secs.map(s => (
-                <TableBlock key={`${s.sectionNo}-${s.seq}`} html={s.tableHtml} />
+                <Block key={`${s.sectionNo}-${s.seq}`} html={s.tableHtml} />
               ))}
             </section>
           ))
@@ -99,14 +99,24 @@ export function DetailPane({ detail, loading, error, onToggleBookmark, onBack, o
   );
 }
 
-function TableBlock({ html }: { html: string }) {
+/**
+ * 섹션을 이루는 블록 하나 — 표, 소제목, 문단 중 하나다.
+ * 정기공시는 표 사이에 소제목·문단이 섞여 들어오므로(§DartDocumentParser.collectBlocks)
+ * 종류에 따라 간격을 달리해 소제목이 뒤따르는 표에 붙어 보이게 한다.
+ */
+function Block({ html }: { html: string }) {
   // 백엔드가 화이트리스트로 재구성한 HTML이지만, 브라우저 삽입 전 한 번 더 정화한다
   const clean = useMemo(
     () => DOMPurify.sanitize(html, { USE_PROFILES: { html: true } }),
     [html],
   );
+  const spacing = html.startsWith("<h4")
+    ? "mt-3 mb-1"
+    : html.startsWith("<p")
+      ? "mb-2"
+      : "mb-3";
   return (
-    <div className="dart-table mb-3 overflow-x-auto last:mb-0">
+    <div className={`dart-table overflow-x-auto last:mb-0 ${spacing}`}>
       <div dangerouslySetInnerHTML={{ __html: clean }} />
     </div>
   );

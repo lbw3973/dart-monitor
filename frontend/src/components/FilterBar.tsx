@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { KAKAO_LOGIN_URL } from "../api";
-import type { Me, ReportType } from "../types";
-import { REPORT_TYPE_LABEL } from "../types";
+import type { Group, Me, ReportType } from "../types";
+import { GROUP_LABEL, GROUP_TYPES, REPORT_TYPE_LABEL } from "../types";
 
 interface Props {
+  group: Group | "";
   type: ReportType | "";
   q: string;
   from: string;
@@ -13,25 +14,26 @@ interface Props {
   streamConnected: boolean;
   me: Me | undefined;
   tab: "all" | "saved";
-  onChange: (patch: { type?: ReportType | ""; q?: string; from?: string; to?: string }) => void;
+  onChange: (patch: {
+    group?: Group | "";
+    type?: ReportType | "";
+    q?: string;
+    from?: string;
+    to?: string;
+  }) => void;
   onToggleLive: () => void;
   onTab: (t: "all" | "saved") => void;
   onHome: () => void;
   onLogout: () => void;
 }
 
-const TYPES: (ReportType | "")[] = [
-  "",
-  "MAJOR_HOLDING_SIMPLE",
-  "MAJOR_HOLDING_GENERAL",
-  "EXEC_OWNERSHIP",
-];
+const GROUPS: Group[] = ["equity", "periodic"];
 
 const INPUT =
   "h-8 rounded border border-slate-300 bg-white px-2 text-xs dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100";
 
 export function FilterBar({
-  type, q, from, to, total, live, streamConnected, me, tab,
+  group, type, q, from, to, total, live, streamConnected, me, tab,
   onChange, onToggleLive, onTab, onLogout, onHome,
 }: Props) {
   const [open, setOpen] = useState(false);   // 모바일에서 필터 접기
@@ -67,7 +69,7 @@ export function FilterBar({
 
         {/* 데스크톱: 필터를 1행에 펼친다 */}
         <div className="hidden flex-wrap items-center gap-2 lg:flex">
-          <FilterInputs type={type} q={q} from={from} to={to} onChange={onChange} />
+          <FilterInputs group={group} type={type} q={q} from={from} to={to} onChange={onChange} />
         </div>
 
         <div className="ml-auto flex shrink-0 items-center gap-2">
@@ -131,7 +133,7 @@ export function FilterBar({
       {/* 2행: 모바일에서만, 토글로 펼친다 */}
       {open && (
         <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 px-3 py-2 lg:hidden dark:border-slate-800">
-          <FilterInputs type={type} q={q} from={from} to={to} onChange={onChange} />
+          <FilterInputs group={group} type={type} q={q} from={from} to={to} onChange={onChange} />
           <span className="ml-auto text-xs text-slate-500">{total.toLocaleString()}건</span>
         </div>
       )}
@@ -140,21 +142,41 @@ export function FilterBar({
 }
 
 function FilterInputs({
-  type, q, from, to, onChange,
-}: Pick<Props, "type" | "q" | "from" | "to" | "onChange">) {
+  group, type, q, from, to, onChange,
+}: Pick<Props, "group" | "type" | "q" | "from" | "to" | "onChange">) {
   return (
     <>
+      {/* 1단 — 공시 그룹. 바꾸면 2단을 비운다 (그룹 간 유형이 호환되지 않는다) */}
       <select
-        value={type}
-        onChange={e => onChange({ type: e.target.value as ReportType | "" })}
+        value={group}
+        onChange={e => onChange({ group: e.target.value as Group | "", type: "" })}
         className={INPUT}
+        aria-label="공시 그룹"
       >
-        {TYPES.map(t => (
-          <option key={t} value={t}>
-            {t === "" ? "전체 유형" : REPORT_TYPE_LABEL[t]}
+        <option value="">전체 공시</option>
+        {GROUPS.map(g => (
+          <option key={g} value={g}>
+            {GROUP_LABEL[g]}
           </option>
         ))}
       </select>
+
+      {/* 2단 — 상세 유형. 그룹을 고르지 않았으면 고를 것이 없으므로 감춘다 */}
+      {group && (
+        <select
+          value={type}
+          onChange={e => onChange({ type: e.target.value as ReportType | "" })}
+          className={INPUT}
+          aria-label="상세 유형"
+        >
+          <option value="">{GROUP_LABEL[group]} 전체</option>
+          {GROUP_TYPES[group].map(t => (
+            <option key={t} value={t}>
+              {REPORT_TYPE_LABEL[t]}
+            </option>
+          ))}
+        </select>
+      )}
 
       <input type="date" value={from} onChange={e => onChange({ from: e.target.value })} className={INPUT} />
       <span className="text-xs text-slate-400">~</span>

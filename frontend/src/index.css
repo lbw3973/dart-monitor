@@ -35,3 +35,24 @@
   .dart-table td { border-color: var(--color-slate-600); }
   .dart-table th { background: var(--color-slate-800); }
 }
+
+/* 정기공시는 표 사이에 소제목·문단이 섞인다(§DartDocumentParser.collectBlocks).
+   문단에는 "해당 사항 없습니다" 같은 단서와 각주가 들어가므로 표와 함께 읽혀야 한다. */
+.dart-table h4 {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-slate-700);
+}
+.dart-table p {
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--color-slate-600);
+  /* 원문의 줄바꿈(<BR>)을 살린다 — 항목을 줄 단위로 나열하는 문단이 많다 */
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+@media (prefers-color-scheme: dark) {
+  .dart-table h4 { color: var(--color-slate-200); }
+  .dart-table p { color: var(--color-slate-400); }
+}

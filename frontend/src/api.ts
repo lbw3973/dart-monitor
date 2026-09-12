@@ -1,7 +1,11 @@
-import type { DisclosureDetail, DisclosureSummary, Me, PageResponse, ReportType } from "./types";
+import type { DisclosureDetail, DisclosureSummary, Group, Me, PageResponse, ReportType } from "./types";
+import { GROUP_TYPES } from "./types";
 
 export interface SearchParams {
+  /** 상세 유형. 지정되면 group보다 우선한다. */
   type?: ReportType | "";
+  /** 그룹만 지정된 경우(상세=전체) 그룹에 속한 유형 전체를 조회한다. */
+  group?: Group | "";
   q?: string;
   from?: string;
   to?: string;
@@ -17,7 +21,10 @@ async function get<T>(path: string): Promise<T> {
 
 export function fetchDisclosures(p: SearchParams) {
   const qs = new URLSearchParams();
+  // URL은 group=periodic 으로 짧게 유지하고, API에는 유형 목록으로 펼쳐 보낸다.
+  // (공시검색 조건은 유형 단위라 그룹 개념을 백엔드에 둘 필요가 없다)
   if (p.type) qs.set("type", p.type);
+  else if (p.group) GROUP_TYPES[p.group].forEach(t => qs.append("type", t));
   if (p.q?.trim()) qs.set("q", p.q.trim());
   if (p.from) qs.set("from", p.from);
   if (p.to) qs.set("to", p.to);
