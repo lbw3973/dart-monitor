@@ -4,6 +4,7 @@ import jakarta.annotation.PreDestroy;
 import kr.irm.dart.config.DartProperties;
 import kr.irm.dart.domain.Disclosure;
 import kr.irm.dart.domain.DisclosureRepository;
+import kr.irm.dart.service.SettingService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Limit;
@@ -30,13 +31,16 @@ public class DocumentFetcher {
     private final DartApiClient client;
     private final DisclosureRepository repository;
     private final DartProperties props;
+    private final SettingService settings;
     private final ExecutorService pool;
     private final Semaphore rateLimit;
 
-    public DocumentFetcher(DartApiClient client, DisclosureRepository repository, DartProperties props) {
+    public DocumentFetcher(DartApiClient client, DisclosureRepository repository,
+                           DartProperties props, SettingService settings) {
         this.client = client;
         this.repository = repository;
         this.props = props;
+        this.settings = settings;
         this.pool = Executors.newFixedThreadPool(props.fetchConcurrency(), r -> {
             Thread t = new Thread(r, "doc-fetch");
             t.setDaemon(true);
@@ -79,7 +83,7 @@ public class DocumentFetcher {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         } catch (Exception e) {
-            d.markRetryable(e.getMessage(), props.maxRetry());
+            d.markRetryable(e.getMessage(), settings.fetchMaxRetry(), props.fetchRetryInterval());
             repository.save(d);
             log.warn("원본 확보 실패 {} (시도 {}회) {}", rceptNo, d.getRetryCount(), e.getMessage());
         }

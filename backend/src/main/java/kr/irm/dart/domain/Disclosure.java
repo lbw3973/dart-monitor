@@ -97,8 +97,8 @@ public class Disclosure {
         this.nextRetryAt = null;
     }
 
-    /** 실패를 기록하고 지수 백오프로 다음 재시도 시각을 잡는다. 한도 초과 시 FAILED로 고정. */
-    public void markRetryable(String error, int maxRetry) {
+    /** 실패를 기록하고 다음 재시도 시각을 잡는다. 한도 초과 시 FAILED로 고정. */
+    public void markRetryable(String error, int maxRetry, java.time.Duration interval) {
         this.retryCount++;
         this.parseError = truncate(error);
         if (this.retryCount >= maxRetry) {
@@ -106,7 +106,7 @@ public class Disclosure {
             this.nextRetryAt = null;
         } else {
             this.parseStatus = ParseStatus.PENDING;
-            this.nextRetryAt = Instant.now().plusSeconds(backoffSeconds(this.retryCount));
+            this.nextRetryAt = Instant.now().plus(interval);
         }
     }
 
@@ -120,22 +120,6 @@ public class Disclosure {
         this.parseStatus = ParseStatus.FAILED;
         this.parseError = truncate(error);
         this.parsedAt = Instant.now();
-    }
-
-    /**
-     * 접수 직후 document.xml이 아직 없는 경우가 실제로 발생한다(status=014).
-     * 실측 지연은 약 3분이었으므로 초반 구간을 촘촘히 두고 뒤로 갈수록 벌린다.
-     * maxRetry=7 기준 총 재시도 창은 약 1시간.
-     */
-    private static long backoffSeconds(int attempt) {
-        return switch (attempt) {
-            case 1 -> 10;
-            case 2 -> 30;
-            case 3 -> 60;
-            case 4 -> 180;
-            case 5 -> 600;
-            default -> 1800;
-        };
     }
 
     private static String truncate(String s) {

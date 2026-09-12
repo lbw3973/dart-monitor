@@ -21,5 +21,6 @@ public record DartProperties(
         int catchUpMaxDays,
         String rawDir,
         int fetchConcurrency,
+        Duration fetchRetryInterval,
         int maxRetry
 ) {}

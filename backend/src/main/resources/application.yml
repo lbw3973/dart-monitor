@@ -36,7 +36,11 @@ dart:
   catch-up-max-days: 30           # 기동 시 소급 상한. 0이면 비활성
   raw-dir: ${DART_RAW_DIR:./raw}
   fetch-concurrency: 2
-  max-retry: 7
+  # DART가 원본을 배치로 공개해 준비 시점이 일정하지 않다(접수 후 25~40분 관측).
+  # 그래서 점증 간격이 아니라 균등 간격으로 확인한다.
+  fetch-retry-interval: 5m
+  # app_setting 테이블의 'fetch.max-retry' 가 있으면 그 값이 우선한다. 여기는 폴백.
+  max-retry: 18
 
 kakao:
   rest-api-key: ${KAKAO_REST_API_KEY}
