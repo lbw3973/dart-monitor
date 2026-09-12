@@ -14,6 +14,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -30,6 +31,15 @@ public class DartDocumentParser {
 
     private static final Logger log = LoggerFactory.getLogger(DartDocumentParser.class);
 
+    /**
+     * 본문 글자 수 상한. 넘으면 파싱하지 않는다.
+     *
+     * 실측(힙 585MB, SerialGC): 22.1M자 문서는 DOM 66MB / 총 116MB로 여유롭고,
+     * 63.6M자 문서는 총 393MB를 쓴다. 코스피·코스닥 최대 관측치가 22.1M자(SK 사업보고서)라
+     * 40M자면 실제 문서는 모두 통과하고 예상 못 한 초대형만 걸린다.
+     */
+    private static final int MAX_XML_CHARS = 40_000_000;
+
     private final ParseRules rules;
     private final TableConverter converter;
 
@@ -40,6 +50,10 @@ public class DartDocumentParser {
 
     public ParseResult parse(byte[] zipBytes, String rceptNo, ReportType type) throws IOException {
         String xml = extractMainXml(zipBytes, rceptNo);
+        if (xml.length() > MAX_XML_CHARS) {
+            throw new DocumentTooLargeException(
+                    "본문 %,d자가 상한 %,d자를 초과".formatted(xml.length(), MAX_XML_CHARS));
+        }
         return parseXml(xml, type);
     }
 
@@ -102,18 +116,21 @@ public class DartDocumentParser {
                         .formatted(rule.id(), rule.expect(), title));
             }
 
-            List<Element> tables = section.getElementsByTag("TABLE");
-            if (tables.isEmpty()) {
-                warnings.add("표 없음 id=%s (%s)".formatted(rule.id(), title));
+            List<Element> blocks = new ArrayList<>();
+            collectBlocks(section, ownTitleOf(section), blocks);
+            if (blocks.isEmpty()) {
+                warnings.add("내용 없음 id=%s (%s)".formatted(rule.id(), title));
                 continue;
             }
+
             int seq = seqBase(out, rule.sectionNo());
-            for (Element table : tables) {
+            for (Element block : blocks) {
+                boolean isTable = block.tagName().equalsIgnoreCase("TABLE");
                 out.add(new ExtractedSection(
                         rule.sectionNo(), rule.id(), title, seq++,
-                        converter.toHtml(table),
-                        converter.toJson(table),
-                        converter.toPlainText(List.of(table))));
+                        isTable ? converter.toHtml(block) : converter.toTextHtml(block),
+                        isTable ? converter.toJson(block) : null,
+                        isTable ? converter.toPlainText(List.of(block)) : TableConverter.cellText(block)));
             }
         }
         return new ParseResult(out, warnings);
@@ -155,6 +172,33 @@ public class DartDocumentParser {
             }
         }
         return Optional.empty();
+    }
+
+    /**
+     * 섹션 안에서 보여줄 블록을 문서 순서대로 모은다 — 소제목(TITLE)·문단(P)·표(TABLE).
+     *
+     * 표만 뽑으면 정기공시에서 정보가 사라진다. 예를 들어 '대주주 등과의 거래내용'은
+     * 표가 1개뿐이고 "가. 대주주등에 대한 신용공여 등 / 해당 사항 없습니다" 가 문단에 있다.
+     * 소제목까지 살리는 이유는 '주주에 관한 사항'처럼 표가 14개인 섹션에서
+     * 어느 표가 무엇인지 구분이 안 되기 때문이다.
+     *
+     * TABLE은 통째로 담고 안으로 내려가지 않는다(표 안의 문단은 셀 텍스트로 이미 처리된다).
+     * IMAGE는 ZIP에 파일이 없어 렌더할 수 없으므로 자연히 빠진다.
+     */
+    private static void collectBlocks(Element node, Element ownTitle, List<Element> out) {
+        for (Element child : node.children()) {
+            switch (child.tagName().toUpperCase(Locale.ROOT)) {
+                case "TABLE" -> out.add(child);
+                case "P" -> { if (!child.text().isBlank()) out.add(child); }
+                case "TITLE" -> { if (child != ownTitle && !child.text().isBlank()) out.add(child); }
+                default -> collectBlocks(child, ownTitle, out);
+            }
+        }
+    }
+
+    /** 섹션 자신의 제목 엘리먼트. 블록 목록에서 제외하려면 동일성 비교가 필요하다. */
+    private static Element ownTitleOf(Element section) {
+        return section.getElementsByTag("TITLE").first();
     }
 
     private static String titleOf(Element section) {

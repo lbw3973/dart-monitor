@@ -22,7 +22,7 @@ spring:
 dart:
   api-key: ${DART_API_KEY}
   base-url: https://opendart.fss.or.kr/api
-  detail-types: [D001, D002]
+  detail-types: [D001, D002, A001, A002, A003]   # D=지분공시, A=정기공시
   # 저장 대상 상장 구분 — Y=코스피, K=코스닥, N=코넥스, E=기타·상장폐지
   corp-classes: [Y, K]
   poll-interval: 60s

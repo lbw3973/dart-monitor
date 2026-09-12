@@ -31,6 +31,20 @@ public class TableConverter {
 
     private final ObjectMapper mapper = new ObjectMapper();
 
+    /**
+     * 표 밖 텍스트 블록(소제목·문단)을 최소 태그로 내보낸다.
+     *
+     * 정기공시는 표 사이에 소제목과 문단이 섞이고 그 문단이 정보를 담는다
+     * ("해당 사항 없습니다", "나. 발행할 주식의총수 : 100,000,000주").
+     * 표만 뽑으면 섹션이 비어 보이거나 값이 사라진다.
+     *
+     * 표와 마찬가지로 화이트리스트다 — 원문 태그를 옮기지 않고 텍스트만 꺼내 감싼다.
+     */
+    public String toTextHtml(Element el) {
+        String tag = el.tagName().equalsIgnoreCase("TITLE") ? "h4" : "p";
+        return "<%s>%s</%s>".formatted(tag, escapeText(cellText(el)), tag);
+    }
+
     public String toHtml(Element table) {
         StringBuilder sb = new StringBuilder();
         writeElement(table, sb, semanticClass(table));

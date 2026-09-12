@@ -21,3 +21,23 @@ dart:
         - { sectionNo: "3", id: "D-0-1-3-1", expect: "가. 소유 특정증권등의 수 및 소유비율" }
         - { sectionNo: "3", id: "D-0-1-3-2", expect: "나. 특정증권등의 종류별 소유내역" }
         - { sectionNo: "3", id: "D-0-1-3-3", expect: "다. 세부변동내역" }
+
+    # ── 정기공시 ──
+    # 사업·반기·분기가 목차 ID를 완전히 공유한다(M8 발견 1, 4건 대조).
+    # 그래서 룰은 BUSINESS_REPORT에 한 번만 쓰고 YAML 앵커(&periodic)로 나머지 둘에 붙인다.
+    # 세 곳에 복사하면 한 곳만 고쳤을 때 특정 서식에서 섹션이 조용히 빠진다.
+    # 섹션을 바꿀 때는 아래 sections 한 곳만 고치면 3종에 모두 반영된다.
+    #
+    # sectionNo는 화면 표시 순서다(section_no ASC 정렬). 문서의 장 번호(VII, X)를 쓰면
+    # 문자열 정렬이 뒤틀리므로 쓰지 않는다. 지분 정보 관련성이 높은 순으로 1~3을 부여했다.
+    #
+    # 재무제표·주석은 제외한다 — 주석 하나가 표 750개 / 1.8MB라 DB가 감당하지 못한다.
+    # 장(章) 단위 ID(D-0-3-0-0 등)는 하위 절을 통째로 포함하므로 절 단위로만 지정한다.
+    BUSINESS_REPORT: &periodic
+      scope: DOCUMENT
+      sections:
+        - { sectionNo: "1", id: "D-0-7-0-0",  expect: "주주에 관한 사항" }
+        - { sectionNo: "2", id: "D-0-1-4-0",  expect: "주식의 총수 등" }
+        - { sectionNo: "3", id: "D-0-10-0-0", expect: "대주주 등과의 거래내용" }
+    HALF_YEAR_REPORT: *periodic
+    QUARTER_REPORT: *periodic

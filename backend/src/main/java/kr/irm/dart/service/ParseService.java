@@ -2,6 +2,7 @@ package kr.irm.dart.service;
 
 import kr.irm.dart.domain.*;
 import kr.irm.dart.parser.DartDocumentParser;
+import kr.irm.dart.parser.DocumentTooLargeException;
 import kr.irm.dart.parser.ParseResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -76,6 +77,11 @@ public class ParseService {
             }
             // 목록에 '수집중'으로 떠 있던 항목이 파싱을 마쳤음을 알린다
             events.publishParsed(d);
+        } catch (DocumentTooLargeException e) {
+            // 재시도해도 같은 결과다. FAILED로 두면 재처리 대상에 계속 남으므로 SKIPPED로 구분한다.
+            d.markSkipped(e.getMessage());
+            disclosures.save(d);
+            log.warn("문서가 너무 커 파싱 건너뜀 {} — {}", rceptNo, e.getMessage());
         } catch (Exception e) {
             d.markParseFailed(e.toString());
             disclosures.save(d);

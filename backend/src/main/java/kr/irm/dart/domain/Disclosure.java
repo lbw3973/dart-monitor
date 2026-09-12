@@ -116,6 +116,13 @@ public class Disclosure {
         this.parsedAt = Instant.now();
     }
 
+    /** 파싱을 시도하지 않고 건너뛴다. 실패와 구분해야 재시도 대상에 들어가지 않는다. */
+    public void markSkipped(String reason) {
+        this.parseStatus = ParseStatus.SKIPPED;
+        this.parseError = truncate(reason);
+        this.parsedAt = Instant.now();
+    }
+
     public void markParseFailed(String error) {
         this.parseStatus = ParseStatus.FAILED;
         this.parseError = truncate(error);
