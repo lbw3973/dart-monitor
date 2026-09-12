@@ -23,6 +23,8 @@ dart:
   api-key: ${DART_API_KEY}
   base-url: https://opendart.fss.or.kr/api
   detail-types: [D001, D002]
+  # 저장 대상 상장 구분 — Y=코스피, K=코스닥, N=코넥스, E=기타·상장폐지
+  corp-classes: [Y, K]
   poll-interval: 60s
   # DART 전자접수는 평일 07:30~19:00뿐이다. 그 밖의 폴링은 전부 헛돈다.
   # 따옴표 필수 — YAML이 07:00을 60진수 정수(420)로 읽는다.

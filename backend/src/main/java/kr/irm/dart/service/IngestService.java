@@ -1,6 +1,7 @@
 package kr.irm.dart.service;
 
 import kr.irm.dart.collector.DartApiClient.ListItem;
+import kr.irm.dart.config.DartProperties;
 import kr.irm.dart.domain.Disclosure;
 import kr.irm.dart.domain.DisclosureRepository;
 import kr.irm.dart.domain.ReportType;
@@ -19,9 +20,11 @@ public class IngestService {
     private static final Logger log = LoggerFactory.getLogger(IngestService.class);
 
     private final DisclosureRepository repository;
+    private final DartProperties props;
 
-    public IngestService(DisclosureRepository repository) {
+    public IngestService(DisclosureRepository repository, DartProperties props) {
         this.repository = repository;
+        this.props = props;
     }
 
     /**
@@ -30,6 +33,14 @@ public class IngestService {
      */
     @Transactional
     public List<Disclosure> saveNew(List<ListItem> items) {
+        if (items.isEmpty()) return List.of();
+
+        // 상장 구분 필터. 목록 API의 corp_cls 파라미터로는 걸러 받을 수 없다 —
+        // 값을 하나만 받고, 여러 값을 주면 에러 없이 기타법인 목록을 돌려준다(실측).
+        // 그래서 전부 받아 여기서 거른다. 걸러진 수는 ingest_run의 fetched-inserted 차이로 드러난다.
+        items = items.stream()
+                .filter(i -> props.corpClasses().contains(i.corpCls()))
+                .toList();
         if (items.isEmpty()) return List.of();
 
         Set<String> ids = new HashSet<>();

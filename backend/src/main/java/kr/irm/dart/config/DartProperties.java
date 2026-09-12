@@ -11,6 +11,7 @@ public record DartProperties(
         String apiKey,
         String baseUrl,
         List<String> detailTypes,
+        List<String> corpClasses,
         Duration pollInterval,
         LocalTime activeFrom,
         LocalTime activeTo,
