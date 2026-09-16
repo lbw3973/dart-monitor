@@ -1,8 +1,8 @@
 # 이미지 레포지토리 및 태그 정의
 # 프론트와 백엔드는 별개 이미지다. 각각의 버전을 따로 올린다.
 IMAGE_NAME       = ghcr.io/lbw3973/dart
-BACKEND_VERSION  = 1.2.0
-FRONTEND_VERSION = 1.2.0
+BACKEND_VERSION  = 1.2.1
+FRONTEND_VERSION = 1.2.1
 LATEST           = latest
 PLATFORM         = linux/arm64
 
