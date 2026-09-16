@@ -137,12 +137,20 @@ export function setDisclosureHidden(rceptNo: string, hidden: boolean) {
   return send<AdminDisclosure>(`/api/admin/disclosures/${rceptNo}/hidden`, "PUT", { hidden });
 }
 
-export function fetchCommentBoards(limit = 50) {
-  return get<CommentBoard[]>(`/api/admin/comment-boards?limit=${limit}`);
+export function fetchCommentBoards(q: string, page = 0) {
+  return get<PageResponse<CommentBoard>>(`/api/admin/comment-boards?${adminQs(q, page)}`);
 }
 
-export function fetchAdminUsers() {
-  return get<AdminUser[]>("/api/admin/users");
+export function fetchAdminUsers(q: string, page = 0) {
+  return get<PageResponse<AdminUser>>(`/api/admin/users?${adminQs(q, page)}`);
+}
+
+function adminQs(q: string, page: number) {
+  const qs = new URLSearchParams();
+  if (q.trim()) qs.set("q", q.trim());
+  qs.set("page", String(page));
+  qs.set("size", "50");
+  return qs.toString();
 }
 
 export function setUserAdmin(id: number, admin: boolean) {

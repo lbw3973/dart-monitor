@@ -50,15 +50,20 @@ public class AdminController {
 
     /** 의견이 달린 공시만. 개별 삭제는 DELETE /api/comments/{id} 가 그대로 받는다. */
     @GetMapping("/comment-boards")
-    public List<CommentBoard> commentBoards(@RequestParam(defaultValue = "50") int limit) {
-        return admin.commentBoards(limit);
+    public PageResponse<CommentBoard> commentBoards(@RequestParam(required = false) String q,
+                                                    @RequestParam(defaultValue = "0") int page,
+                                                    @RequestParam(defaultValue = "50") int size) {
+        return admin.commentBoards(q, page, size);
     }
 
     /* ── 사용자 ── */
 
     @GetMapping("/users")
-    public List<AdminUser> users(@CurrentUser AppUser me) {
-        return admin.users(me);
+    public PageResponse<AdminUser> users(@CurrentUser AppUser me,
+                                         @RequestParam(required = false) String q,
+                                         @RequestParam(defaultValue = "0") int page,
+                                         @RequestParam(defaultValue = "50") int size) {
+        return admin.users(me, q, page, size);
     }
 
     @PutMapping("/users/{id}/admin")

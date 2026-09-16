@@ -137,7 +137,7 @@ function admin(req: IncomingMessage, res: ServerResponse, path: string, method: 
       if (q && !`${d.corpName} ${d.reportNm} ${d.rceptNo}`.includes(q)) return false;
       return true;
     });
-    return json(res, page(hit.map(d => adminView(d, store))));
+    return json(res, page(hit.map(d => adminView(d, store)), url));
   }
 
   const hideMatch = /^\/api\/admin\/disclosures\/(\d+)\/hidden$/.exec(path);
@@ -147,10 +147,23 @@ function admin(req: IncomingMessage, res: ServerResponse, path: string, method: 
   }
 
   if (path === "/api/admin/comment-boards" && method === "GET") {
-    return json(res, boards(store));
+    const url = new URL(req.url ?? "/", "http://localhost");
+    const q = (url.searchParams.get("q") ?? "").trim();
+    const hit = boards(store).filter(
+      b => !q || `${b.corpName} ${b.reportNm} ${b.rceptNo}`.includes(q));
+    return json(res, page(hit, url));
   }
 
-  if (path === "/api/admin/users" && method === "GET") return json(res, store.users);
+  if (path === "/api/admin/users" && method === "GET") {
+    const url = new URL(req.url ?? "/", "http://localhost");
+    const q = (url.searchParams.get("q") ?? "").trim();
+    const hit = store.users
+      .filter(u => !q || `${u.nickname} ${u.providerUid}`.includes(q))
+      // "ADMIN" < "USER" — 실제 백엔드도 role 오름차순으로 관리자를 위에 둔다
+      .slice()
+      .sort((a, b) => Number(b.admin) - Number(a.admin) || b.id - a.id);
+    return json(res, page(hit, url));
+  }
 
   const roleMatch = /^\/api\/admin\/users\/(\d+)\/admin$/.exec(path);
   if (roleMatch && method === "PUT") {
@@ -313,14 +326,22 @@ function readJson(req: IncomingMessage): Promise<unknown> {
   });
 }
 
-function page<T>(content: T[]): PageResponse<T> {
+/**
+ * 실제 백엔드처럼 잘라서 준다.
+ * url 을 주면 page·size 를 읽어 그 구간만 — 안 주면 통째로(일반 목록은 고정 데이터가 적다).
+ */
+function page<T>(content: T[], url?: URL): PageResponse<T> {
+  const size = url ? Math.min(Number(url.searchParams.get("size")) || 50, 100) : 50;
+  const idx = url ? Math.max(Number(url.searchParams.get("page")) || 0, 0) : 0;
+  const totalPages = Math.ceil(content.length / size);
+  const slice = url ? content.slice(idx * size, idx * size + size) : content;
   return {
-    content,
-    page: 0,
-    size: 50,
+    content: slice,
+    page: idx,
+    size,
     totalElements: content.length,
-    totalPages: content.length === 0 ? 0 : 1,
-    last: true,
+    totalPages,
+    last: idx >= totalPages - 1,
   };
 }
 

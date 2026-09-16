@@ -11,7 +11,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
@@ -82,21 +81,30 @@ public class AdminService {
 
     /** 의견이 달린 공시만. 여기서 공시를 고르면 그 스레드를 열어 개별 삭제한다. */
     @Transactional(readOnly = true)
-    public List<CommentBoard> commentBoards(int limit) {
-        return comments.boards(PageRequest.of(0, Math.clamp(limit, 1, MAX_SIZE))).stream()
-                .map(b -> new CommentBoard(b.getRceptNo(), b.getCorpName(), b.getReportNm(),
-                        b.getRceptDt(), b.getHiddenAt() != null, b.getCnt(), b.getLastAt()))
-                .toList();
+    public PageResponse<CommentBoard> commentBoards(String q, int page, int size) {
+        // 정렬은 질의문의 order by(최근 의견순)가 정한다 — Pageable 에 Sort 를 주면 덧붙어 깨진다
+        Page<CommentRepository.Board> found =
+                comments.boards(like(q), PageRequest.of(Math.max(page, 0), clamp(size)));
+        return PageResponse.of(found,
+                b -> new CommentBoard(b.getRceptNo(), b.getCorpName(), b.getReportNm(),
+                        b.getRceptDt(), b.getHiddenAt() != null, b.getCnt(), b.getLastAt()));
     }
 
     @Transactional(readOnly = true)
-    public List<AdminUser> users(AppUser me) {
-        return users.findAll().stream()
-                // 관리자를 위로, 그다음 최근 가입순 — 권한을 다루는 화면이라 관리자가 먼저 보여야 한다
-                .sorted(Comparator.comparing(AppUser::isAdmin).reversed()
-                        .thenComparing(AppUser::getId, Comparator.reverseOrder()))
-                .map(u -> AdminUser.from(u, me.getId()))
-                .toList();
+    public PageResponse<AdminUser> users(AppUser me, String q, int page, int size) {
+        // "ADMIN" < "USER" 라 role 오름차순이면 관리자가 위로 온다. 같은 등급 안에서는 최근 가입순.
+        Pageable pageable = PageRequest.of(Math.max(page, 0), clamp(size),
+                Sort.by(Sort.Order.asc("role"), Sort.Order.desc("id")));
+        return PageResponse.of(users.search(like(q), pageable), u -> AdminUser.from(u, me.getId()));
+    }
+
+    /** 검색어를 LIKE 패턴으로. 비어 있으면 "%" — 전부 통과시킨다. */
+    private static String like(String q) {
+        return q == null || q.isBlank() ? "%" : "%" + q.trim().toLowerCase() + "%";
+    }
+
+    private static int clamp(int size) {
+        return Math.clamp(size, 1, MAX_SIZE);
     }
 
     @Transactional

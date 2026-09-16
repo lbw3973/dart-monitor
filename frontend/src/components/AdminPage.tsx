@@ -1,11 +1,11 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import type { FC, ReactNode } from "react";
 import {
   fetchAdminDisclosures, fetchAdminUsers, fetchCommentBoards,
   setDisclosureHidden, setUserAdmin,
 } from "../api";
-import type { CommentBoard } from "../types";
+import type { CommentBoard, PageResponse } from "../types";
 import { CommentThread } from "./CommentThread";
 
 type Tab = "disclosures" | "comments" | "users";
@@ -66,12 +66,16 @@ export function AdminPage({ onClose, onNotice }: Props) {
 
 function Disclosures({ onNotice }: { onNotice: Props["onNotice"] }) {
   const qc = useQueryClient();
-  const [q, setQ] = useState("");
+  const { q, setQ, debounced, page, setPage } = useSearch();
   const [hidden, setHidden] = useState<boolean | null>(null);
 
+  // 필터를 바꾸면 첫 페이지로 — 3페이지를 보던 중 조건을 좁히면 빈 화면이 나온다
+  useEffect(() => setPage(0), [hidden, setPage]);
+
   const list = useQuery({
-    queryKey: ["admin", "disclosures", q, hidden],
-    queryFn: () => fetchAdminDisclosures(q, hidden),
+    queryKey: ["admin", "disclosures", debounced, hidden, page],
+    queryFn: () => fetchAdminDisclosures(debounced, hidden, page),
+    placeholderData: keepPreviousData,
   });
 
   const toggle = useMutation({
@@ -91,20 +95,14 @@ function Disclosures({ onNotice }: { onNotice: Props["onNotice"] }) {
 
   return (
     <>
-      <p className="mb-3 max-w-2xl text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+      <Intro>
         내린 공시는 목록·상세·검색·저장목록에서 모두 빠지지만 행은 남습니다. 지우지 않는 이유는
         폴러가 최근 공시를 다시 수집해 되살리기 때문이고, 행을 지우면 거기 달린 의견과 즐겨찾기까지
         함께 사라지기 때문입니다.
-      </p>
+      </Intro>
 
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <input
-          type="search"
-          value={q}
-          onChange={e => setQ(e.target.value)}
-          placeholder="회사명 · 보고서명 · 접수번호"
-          className="h-8 min-w-0 flex-1 rounded border border-slate-300 bg-white px-2 text-xs sm:max-w-64 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
-        />
+        <SearchBox value={q} onChange={setQ} placeholder="회사명 · 보고서명 · 접수번호" />
         <div className="flex shrink-0 rounded bg-slate-100 p-0.5 dark:bg-slate-800">
           {([[null, "전체"], [false, "보이는 것"], [true, "내린 것"]] as const).map(([v, label]) => (
             <button
@@ -120,6 +118,7 @@ function Disclosures({ onNotice }: { onNotice: Props["onNotice"] }) {
             </button>
           ))}
         </div>
+        <Total page={list.data} />
       </div>
 
       {list.isLoading ? (
@@ -135,11 +134,7 @@ function Disclosures({ onNotice }: { onNotice: Props["onNotice"] }) {
                   <span className={`truncate text-sm font-medium ${d.hidden ? "text-slate-400 line-through" : ""}`}>
                     {d.corpName}
                   </span>
-                  {d.hidden && (
-                    <span className="shrink-0 rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-medium text-slate-600 dark:bg-slate-700 dark:text-slate-300">
-                      내림
-                    </span>
-                  )}
+                  {d.hidden && <Chip>내림</Chip>}
                   {d.commentCount > 0 && (
                     <span className="shrink-0 text-[10px] tabular-nums text-sky-600 dark:text-sky-400">
                       의견 {d.commentCount}
@@ -147,8 +142,7 @@ function Disclosures({ onNotice }: { onNotice: Props["onNotice"] }) {
                   )}
                 </div>
                 <p className="truncate text-xs text-slate-500 dark:text-slate-400">
-                  {d.reportNm} · {d.rceptDt} ·{" "}
-                  <span className="tabular-nums">{d.rceptNo}</span>
+                  {d.reportNm} · {d.rceptDt} · <span className="tabular-nums">{d.rceptNo}</span>
                 </p>
               </div>
 
@@ -167,6 +161,8 @@ function Disclosures({ onNotice }: { onNotice: Props["onNotice"] }) {
           ))}
         </ul>
       )}
+
+      <Pager page={list.data} onPage={setPage} />
     </>
   );
 }
@@ -174,14 +170,16 @@ function Disclosures({ onNotice }: { onNotice: Props["onNotice"] }) {
 /* ───────────────── 의견 ───────────────── */
 
 function Comments({ onNotice }: { onNotice: Props["onNotice"] }) {
+  const { q, setQ, debounced, page, setPage } = useSearch();
   const [open, setOpen] = useState<CommentBoard | null>(null);
 
   const boards = useQuery({
-    queryKey: ["admin", "comment-boards"],
-    queryFn: () => fetchCommentBoards(),
+    queryKey: ["admin", "comment-boards", debounced, page],
+    queryFn: () => fetchCommentBoards(debounced, page),
+    placeholderData: keepPreviousData,
   });
 
-  const items = boards.data ?? [];
+  const items = boards.data?.content ?? [];
 
   if (open) {
     return (
@@ -203,15 +201,20 @@ function Comments({ onNotice }: { onNotice: Props["onNotice"] }) {
 
   return (
     <>
-      <p className="mb-3 max-w-2xl text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+      <Intro>
         의견이 하나라도 달린 공시만, 최근에 달린 순으로 보입니다. 공시를 고르면 그 스레드가 열리고
         거기서 개별 삭제합니다. 답글이 달린 의견을 지우면 본문만 비우고 자리는 남습니다.
-      </p>
+      </Intro>
+
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <SearchBox value={q} onChange={setQ} placeholder="회사명 · 보고서명 · 접수번호" />
+        <Total page={boards.data} />
+      </div>
 
       {boards.isLoading ? (
         <Empty>불러오는 중…</Empty>
       ) : items.length === 0 ? (
-        <Empty>아직 의견이 달린 공시가 없습니다.</Empty>
+        <Empty>{q.trim() ? "조건에 맞는 공시가 없습니다." : "아직 의견이 달린 공시가 없습니다."}</Empty>
       ) : (
         <ul className="divide-y divide-slate-100 dark:divide-slate-800">
           {items.map(b => (
@@ -223,11 +226,7 @@ function Comments({ onNotice }: { onNotice: Props["onNotice"] }) {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
                     <span className="truncate text-sm font-medium">{b.corpName}</span>
-                    {b.hidden && (
-                      <span className="shrink-0 rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-medium text-slate-600 dark:bg-slate-700 dark:text-slate-300">
-                        내림
-                      </span>
-                    )}
+                    {b.hidden && <Chip>내림</Chip>}
                   </div>
                   <p className="truncate text-xs text-slate-500 dark:text-slate-400">
                     {b.reportNm} · {b.rceptDt}
@@ -241,6 +240,8 @@ function Comments({ onNotice }: { onNotice: Props["onNotice"] }) {
           ))}
         </ul>
       )}
+
+      <Pager page={boards.data} onPage={setPage} />
     </>
   );
 }
@@ -249,8 +250,13 @@ function Comments({ onNotice }: { onNotice: Props["onNotice"] }) {
 
 function Users({ onNotice }: { onNotice: Props["onNotice"] }) {
   const qc = useQueryClient();
+  const { q, setQ, debounced, page, setPage } = useSearch();
 
-  const list = useQuery({ queryKey: ["admin", "users"], queryFn: fetchAdminUsers });
+  const list = useQuery({
+    queryKey: ["admin", "users", debounced, page],
+    queryFn: () => fetchAdminUsers(debounced, page),
+    placeholderData: keepPreviousData,
+  });
 
   const grant = useMutation({
     mutationFn: ({ id, next }: { id: number; next: boolean }) => setUserAdmin(id, next),
@@ -261,20 +267,25 @@ function Users({ onNotice }: { onNotice: Props["onNotice"] }) {
     onError: (e: Error) => onNotice(failText(e), "warn"),
   });
 
-  const items = list.data ?? [];
+  const items = list.data?.content ?? [];
 
   return (
     <>
-      <p className="mb-3 max-w-2xl text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+      <Intro>
         카카오 로그인에서 이메일을 받지 않아 닉네임이 겹칠 수 있습니다. 카카오 식별자와 가입일로
         사람을 구분하세요. 자신의 권한은 해제할 수 없습니다 — 마지막 관리자가 내려놓으면 아무도
         되돌릴 수 없습니다.
-      </p>
+      </Intro>
+
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <SearchBox value={q} onChange={setQ} placeholder="닉네임 · 카카오 식별자" />
+        <Total page={list.data} />
+      </div>
 
       {list.isLoading ? (
         <Empty>불러오는 중…</Empty>
       ) : items.length === 0 ? (
-        <Empty>가입한 사용자가 없습니다.</Empty>
+        <Empty>{q.trim() ? "조건에 맞는 사용자가 없습니다." : "가입한 사용자가 없습니다."}</Empty>
       ) : (
         <ul className="divide-y divide-slate-100 dark:divide-slate-800">
           {items.map(u => (
@@ -306,11 +317,93 @@ function Users({ onNotice }: { onNotice: Props["onNotice"] }) {
           ))}
         </ul>
       )}
+
+      <Pager page={list.data} onPage={setPage} />
     </>
   );
 }
 
 /* ───────────────── 공용 ───────────────── */
+
+/**
+ * 세 탭이 똑같이 쓰는 검색어·페이지 상태.
+ * 검색어는 타이핑마다 질의하지 않도록 300ms 늦추고, 바뀌면 첫 페이지로 돌아간다
+ * (§App.tsx 목록 검색과 같은 방식).
+ */
+function useSearch() {
+  const [q, setQ] = useState("");
+  const [debounced, setDebounced] = useState("");
+  const [page, setPage] = useState(0);
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(q), 300);
+    return () => clearTimeout(t);
+  }, [q]);
+
+  useEffect(() => setPage(0), [debounced]);
+
+  return { q, setQ, debounced, page, setPage };
+}
+
+function SearchBox({
+  value, onChange, placeholder,
+}: { value: string; onChange: (v: string) => void; placeholder: string }) {
+  return (
+    <input
+      type="search"
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      placeholder={placeholder}
+      className="h-8 min-w-0 flex-1 rounded border border-slate-300 bg-white px-2 text-xs sm:max-w-64 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+    />
+  );
+}
+
+function Total({ page }: { page?: PageResponse<unknown> }) {
+  if (!page) return null;
+  return (
+    <span className="shrink-0 text-xs tabular-nums text-slate-500 dark:text-slate-400">
+      {page.totalElements.toLocaleString()}건
+    </span>
+  );
+}
+
+function Pager({ page, onPage }: { page?: PageResponse<unknown>; onPage: (n: number) => void }) {
+  if (!page || page.totalPages <= 1) return null;
+  return (
+    <div className="mt-4 flex items-center justify-center gap-4 border-t border-slate-200 pt-3 text-xs dark:border-slate-700">
+      <button
+        disabled={page.page === 0}
+        onClick={() => onPage(page.page - 1)}
+        className="cursor-pointer rounded px-2 py-1 whitespace-nowrap disabled:cursor-default disabled:opacity-30 enabled:hover:bg-slate-100 dark:enabled:hover:bg-slate-800"
+      >
+        ← 이전
+      </button>
+      <span className="tabular-nums whitespace-nowrap text-slate-500">
+        {page.page + 1} / {page.totalPages}
+      </span>
+      <button
+        disabled={page.last}
+        onClick={() => onPage(page.page + 1)}
+        className="cursor-pointer rounded px-2 py-1 whitespace-nowrap disabled:cursor-default disabled:opacity-30 enabled:hover:bg-slate-100 dark:enabled:hover:bg-slate-800"
+      >
+        다음 →
+      </button>
+    </div>
+  );
+}
+
+const Intro: FC<{ children: ReactNode }> = ({ children }) => (
+  <p className="mb-3 max-w-2xl text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+    {children}
+  </p>
+);
+
+const Chip: FC<{ children: ReactNode }> = ({ children }) => (
+  <span className="shrink-0 rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-medium text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+    {children}
+  </span>
+);
 
 const Empty: FC<{ children: ReactNode }> = ({ children }) => (
   <p className="py-10 text-center text-xs text-slate-400">{children}</p>
