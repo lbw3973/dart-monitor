@@ -4,11 +4,11 @@ import kr.irm.dart.domain.ParseStatus;
 import kr.irm.dart.service.BackfillService;
 import kr.irm.dart.service.ParseService;
 import org.springframework.format.annotation.DateTimeFormat;
-
-import java.time.LocalDate;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 
 /** 운영용 — 서식 개정으로 파싱 룰을 고친 뒤 재처리할 때 쓴다. */
@@ -27,13 +27,18 @@ public class AdminController {
         this.jdbc = jdbc;
     }
 
-    /** 과거 구간 소급 수집. 하루 단위로 훑으므로 구간이 길면 시간이 걸린다. */
+    /**
+     * 과거 구간 소급 수집. 하루 단위로 훑으므로 구간이 길면 시간이 걸린다.
+     *
+     * @param detailTy 공시상세유형(D001·A002 …). 반복 지정 가능하고, 생략하면 설정된 전체를 돈다.
+     */
     @PostMapping("/backfill")
     public BackfillService.Result backfill(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
-        return backfillService.run(from, to == null ? LocalDate.now() : to);
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(required = false) List<String> detailTy) {
+        return backfillService.run(from, to == null ? LocalDate.now() : to, detailTy);
     }
 
     @PostMapping("/disclosures/{rceptNo}/reparse")

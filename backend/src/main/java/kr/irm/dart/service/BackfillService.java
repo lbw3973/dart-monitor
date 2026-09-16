@@ -45,13 +45,31 @@ public class BackfillService {
      * 구간이 길수록 한 번에 수천 건이라 페이지 상한에 가까워진다.
      */
     public Result run(LocalDate from, LocalDate to) {
+        return run(from, to, null);
+    }
+
+    /**
+     * @param detailTypes 수집할 공시상세유형. 비어 있으면 설정된 전체를 돈다.
+     *                    섹션 규칙을 바꾼 뒤 특정 서식만 다시 받을 때 쓴다 —
+     *                    전체를 돌면 규칙이 바뀌지 않은 서식까지 원본을 다시 내려받는다.
+     */
+    public Result run(LocalDate from, LocalDate to, List<String> detailTypes) {
         if (from.isAfter(to)) throw new IllegalArgumentException("from이 to보다 늦습니다");
+
+        List<String> targets = (detailTypes == null || detailTypes.isEmpty())
+                ? props.detailTypes()
+                : detailTypes.stream().filter(props.detailTypes()::contains).toList();
+        if (targets.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "수집 대상 서식이 없습니다. 설정된 값: " + props.detailTypes());
+        }
+
         long days = ChronoUnit.DAYS.between(from, to) + 1;
-        log.info("백필 시작 {} ~ {} ({}일)", from, to, days);
+        log.info("백필 시작 {} ~ {} ({}일) 서식={}", from, to, days, targets);
 
         int fetched = 0, inserted = 0;
         for (LocalDate d = from; !d.isAfter(to); d = d.plusDays(1)) {
-            for (String detailTy : props.detailTypes()) {
+            for (String detailTy : targets) {
                 List<Disclosure> saved = new ArrayList<>();
                 try {
                     var scan = client.eachPage(d, d, detailTy, MAX_PAGES_PER_DAY, items -> {
@@ -72,8 +90,9 @@ public class BackfillService {
             }
         }
         log.info("백필 완료 {} ~ {} — 조회 {}건, 신규 {}건", from, to, fetched, inserted);
-        return new Result(from, to, fetched, inserted);
+        return new Result(from, to, targets, fetched, inserted);
     }
 
-    public record Result(LocalDate from, LocalDate to, int fetched, int inserted) {}
+    public record Result(LocalDate from, LocalDate to, List<String> detailTypes,
+                         int fetched, int inserted) {}
 }
