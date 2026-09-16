@@ -39,12 +39,6 @@ cd frontend && pnpm install && pnpm dev                             # ③ 프론
 
 프론트와 백엔드는 **별개 이미지이고 버전도 따로 간다.** 고친 쪽만 올리면 된다.
 
-카카오톡 공유를 쓰려면 `Makefile`의 `KAKAO_JS_KEY`에 **JavaScript 키**를 넣는다.
-(REST API 키와 다르다. 콘솔 → [앱] → [플랫폼 키] → [JavaScript 키])
-브라우저에 노출되는 공개 키이며 도메인으로 제한되므로 이미지에 구워도 된다.
-카카오 콘솔의 **플랫폼 → Web → 사이트 도메인**에 운영 주소를 등록해야 동작한다.
-키가 없으면 카카오 버튼만 숨겨지고 나머지는 그대로 동작한다.
-
 ```bash
 make docker-frontend   # 프론트만
 make docker-backend    # 백엔드만
