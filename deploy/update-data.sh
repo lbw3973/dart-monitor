@@ -65,7 +65,7 @@ resolve_choice() {
 
 run_backfill() {   # codes from [to]
     local codes="$1" from="$2" to="${3:-}"
-    local q="/api/admin/backfill?from=$from"
+    local q="/api/ops/backfill?from=$from"
     [ -n "$to" ] && q="$q&to=$to"
     #	detailTy 는 반복 지정한다. 비어 있으면 서버가 설정된 전체를 돈다.
     #	IFS 를 바꿔 자르면 함수 끝까지 남아 뒤따르는 $DC 가 분리되지 않는다. tr 로 바꾼다.
@@ -74,7 +74,7 @@ run_backfill() {   # codes from [to]
 
     echo
     echo "== 백필  종류=${codes:-전체}  기간=$from ~ ${to:-오늘}"
-    admin_api "$q"; echo
+    ops_api "$q"; echo
     echo
     echo "   목록 저장까지 끝났습니다. 원본 다운로드와 파싱은 백그라운드로 이어집니다."
     echo "   진행 상황:  $0 status"
@@ -87,7 +87,7 @@ case "${1:-}" in
 
     reparse)
         echo "== 파싱 실패 건 재처리"
-        admin_api "/api/admin/reparse?status=FAILED"; echo ;;
+        ops_api "/api/ops/reparse?status=FAILED"; echo ;;
 
     status)
         echo "== 수집 현황"

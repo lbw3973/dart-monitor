@@ -110,10 +110,11 @@ Docker 설치 + 스왑 2GB + 방화벽(22/80/443)을 처리한다.
 
 # 과거 구간 소급 수집
 docker compose -f docker-compose.deploy.yml exec backend \
-    sh -c 'wget -qO- --post-data="" "http://localhost:8080/api/admin/backfill?from=2026-09-01"'
+    sh -c 'wget -qO- --post-data="" "http://localhost:8080/api/ops/backfill?from=2026-09-01"'
 ```
 
-관리자 API(`/api/admin/**`)는 Caddy가 외부에서 404로 막는다. 서버 내부에서만 호출한다.
+운영 배치 API(`/api/ops/**`)는 Caddy가 외부에서 404로 막는다. 서버 내부에서만 호출한다.
+관리자 화면 API(`/api/admin/**`)는 통과시키고 백엔드의 `AdminGuard`가 인증으로 막는다.
 
 ---
 
@@ -149,4 +150,5 @@ WHERE parse_status IN ('PARSED','PARSED_WITH_WARN','FAILED');
 
 - `.env`는 **절대 커밋하지 않는다** (`.gitignore` 등록됨)
 - `backend/raw/`(원본 ZIP)도 커밋 대상이 아니다
-- 관리자 API `/api/admin/**`는 운영에서 **네트워크 레벨로 차단**한다 (`deploy/Caddyfile`)
+- 운영 배치 API `/api/ops/**`는 운영에서 **네트워크 레벨로 차단**한다 (`deploy/Caddyfile`)
+- 관리자 화면 API `/api/admin/**`는 **로그인 + 관리자 권한**으로 막는다 (`AdminGuard`)

@@ -50,9 +50,10 @@ show_state() {
     $DC ps --format 'table {{.Service}}\t{{.Status}}' 2>/dev/null || $DC ps
 }
 
-#	관리자 API는 Caddy가 외부에 404로 막으므로 컨테이너 안에서 호출한다.
+#	운영 배치 API(/api/ops/*)는 Caddy가 외부에 404로 막으므로 컨테이너 안에서 호출한다.
+#	쿠키가 없어도 되는 이유가 여기 있다 — 네트워크 경계가 곧 통제다(§OpsController).
 #	--timeout=0: 백필은 구간이 길면 수 분이 걸린다.
-admin_api() {
+ops_api() {
     $DC exec -T backend sh -c \
         "wget -qO- --timeout=0 --post-data='' 'http://localhost:8080$1'"
 }

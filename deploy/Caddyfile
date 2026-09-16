@@ -3,12 +3,17 @@
 {$DOMAIN} {
 	encode gzip
 
-	# 관리자 엔드포인트는 인터넷에 노출하지 않는다 (PLAN §8.4).
-	# 필요할 때는 SSH로 접속해 서버 내부에서 호출한다:
-	#   curl -X POST localhost:8080/api/admin/reparse?status=FAILED
-	handle /api/admin/* {
+	# 운영 배치(소급 수집·재파싱)는 인터넷에 노출하지 않는다.
+	# 한 번에 수 분씩 돌면서 DART API를 두드리는 작업이라 열어 둘 이유가 없다.
+	# 필요할 때는 서버 안에서 호출한다 (§deploy/update-data.sh):
+	#   docker compose exec backend wget -qO- --post-data='' \
+	#     'http://localhost:8080/api/ops/reparse?status=FAILED'
+	handle /api/ops/* {
 		respond 404
 	}
+
+	# 관리자 화면(/api/admin/*)은 브라우저가 호출하므로 통과시킨다.
+	# 인증은 백엔드의 AdminGuard 가 맡는다 — 로그인 없으면 401, 관리자 아니면 403.
 
 	# SSE는 버퍼링하면 안 된다
 	handle /api/stream {
