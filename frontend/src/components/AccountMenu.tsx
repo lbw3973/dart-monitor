@@ -47,9 +47,11 @@ export function AccountMenu({ me, onAdmin, onLogout }: Props) {
         aria-expanded={open}
         className="flex cursor-pointer items-center gap-0.5 rounded px-1.5 py-0.5 text-xs text-slate-600 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
       >
-        <span className="hidden max-w-20 truncate sm:inline">{me.nickname || "사용자"}</span>
+        {/* 모바일에서도 보여야 한다 — 숨기면 화살표만 남아 무엇을 여는 버튼인지 알 수 없다 */}
+        <span className="max-w-14 truncate sm:max-w-20">{me.nickname || "사용자"}</span>
+        {/* 배지는 좁은 화면에서 접는다 — 닉네임이 먼저고, 관리자인지는 메뉴를 열면 드러난다 */}
         {me.admin && (
-          <span className="rounded bg-sky-100 px-1 text-[9px] font-medium text-sky-700 sm:ml-0.5 dark:bg-sky-900 dark:text-sky-200">
+          <span className="hidden rounded bg-sky-100 px-1 text-[9px] font-medium text-sky-700 sm:ml-0.5 sm:inline dark:bg-sky-900 dark:text-sky-200">
             관리자
           </span>
         )}
