@@ -69,6 +69,10 @@ public class Disclosure {
     @Column(name = "parsed_at")
     private Instant parsedAt;
 
+    /** 관리자가 내린 공시. 행은 남겨 둔다 — 지우면 폴러가 되살리고 의견까지 사라진다(§V7). */
+    @Column(name = "hidden_at")
+    private Instant hiddenAt;
+
     protected Disclosure() {}
 
     public Disclosure(String rceptNo, String corpCode, String corpName, String stockCode,
@@ -137,6 +141,10 @@ public class Disclosure {
         if (s == null) return null;
         return s.length() <= 1000 ? s : s.substring(0, 1000);
     }
+
+    public boolean isHidden() { return hiddenAt != null; }
+    public Instant getHiddenAt() { return hiddenAt; }
+    public void setHidden(boolean hidden) { this.hiddenAt = hidden ? Instant.now() : null; }
 
     public String getRceptNo() { return rceptNo; }
     public String getCorpCode() { return corpCode; }

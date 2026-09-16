@@ -47,8 +47,12 @@ public class AppUser {
     }
 
     public Long getId() { return id; }
+    public String getProviderUid() { return providerUid; }
+    public Instant getCreatedAt() { return createdAt; }
+    public Instant getLastLoginAt() { return lastLoginAt; }
     public String getNickname() { return nickname; }
     public String getProfileImage() { return profileImage; }
     public String getRole() { return role; }
     public boolean isAdmin() { return "ADMIN".equals(role); }
+    public void setAdmin(boolean admin) { this.role = admin ? "ADMIN" : "USER"; }
 }

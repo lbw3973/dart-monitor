@@ -1,5 +1,6 @@
 package kr.irm.dart.auth;
 
+import kr.irm.dart.config.AdminProperties;
 import kr.irm.dart.config.KakaoProperties;
 import kr.irm.dart.domain.*;
 import org.slf4j.Logger;
@@ -32,19 +33,28 @@ public class SessionService {
     private final UserSessionRepository sessions;
     private final AppUserRepository users;
     private final KakaoProperties props;
+    private final AdminProperties admins;
 
     public SessionService(UserSessionRepository sessions, AppUserRepository users,
-                          KakaoProperties props) {
+                          KakaoProperties props, AdminProperties admins) {
         this.sessions = sessions;
         this.users = users;
         this.props = props;
+        this.admins = admins;
     }
 
     @Transactional
     public AppUser upsertUser(KakaoOAuthClient.KakaoUser k) {
-        return users.findByProviderAndProviderUid("kakao", k.uid())
+        AppUser user = users.findByProviderAndProviderUid("kakao", k.uid())
                 .map(u -> { u.touch(k.nickname(), k.profileImage()); return u; })
                 .orElseGet(() -> users.save(new AppUser(k.uid(), k.nickname(), k.profileImage())));
+
+        // 설정에 적힌 uid 는 로그인할 때마다 ADMIN 으로 맞춘다 — 실수로 권한을 내려도 복구된다
+        if (admins.bootstraps(k.uid()) && !user.isAdmin()) {
+            user.setAdmin(true);
+            log.info("설정으로 관리자 부여 uid={}", k.uid());
+        }
+        return user;
     }
 
     /** 세션을 만들고 쿠키에 담을 원문 토큰을 돌려준다. */

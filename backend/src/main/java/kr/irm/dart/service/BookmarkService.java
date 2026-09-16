@@ -49,6 +49,11 @@ public class BookmarkService {
         if (ids.isEmpty()) {
             return new PageResponse<>(List.of(), page, size, 0, 0, true);
         }
+        // 숨긴 공시는 저장해 뒀더라도 보이지 않는다 — 즐겨찾기가 우회로가 되면 안 된다
+        ids = disclosures.findVisibleAmong(ids);
+        if (ids.isEmpty()) {
+            return new PageResponse<>(List.of(), page, size, 0, 0, true);
+        }
         Pageable pageable = PageRequest.of(Math.max(page, 0), Math.clamp(size, 1, 100),
                 Sort.by(Sort.Direction.DESC, "rceptDt", "rceptNo"));
         Page<Disclosure> found = disclosures.findByRceptNoIn(ids, pageable);

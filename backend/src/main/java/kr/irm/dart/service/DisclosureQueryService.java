@@ -43,6 +43,8 @@ public class DisclosureQueryService {
 
         Specification<Disclosure> spec = (root, query, cb) -> {
             List<Predicate> ps = new ArrayList<>();
+            // 관리자가 내린 공시는 일반 목록에 나오지 않는다(§V7). 행은 남아 있다.
+            ps.add(cb.isNull(root.get("hiddenAt")));
             // 그룹(5%·임원보고 / 정기공시) 전체를 고르면 여러 유형이 함께 온다
             if (types != null && !types.isEmpty()) ps.add(root.get("reportType").in(types));
             if (status != null) ps.add(cb.equal(root.get("parseStatus"), status));
@@ -70,6 +72,8 @@ public class DisclosureQueryService {
     public DisclosureDetail detail(String rceptNo, AppUser user) {
         Disclosure d = disclosures.findById(rceptNo).orElse(null);
         if (d == null) return null;
+        // 숨긴 공시는 공유 링크로도 열리지 않는다. 관리자만 확인·복구용으로 볼 수 있다.
+        if (d.isHidden() && (user == null || !user.isAdmin())) return null;
 
         boolean marked = !bookmarks.markedAmong(user, List.of(rceptNo)).isEmpty();
         int count = comments.countsAmong(List.of(rceptNo)).getOrDefault(rceptNo, 0);

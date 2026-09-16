@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { KAKAO_LOGIN_URL } from "../api";
+import { AccountMenu } from "./AccountMenu";
 import type { Group, Me, ReportType } from "../types";
 import { GROUP_LABEL, GROUP_TYPES, REPORT_TYPE_LABEL } from "../types";
 
@@ -25,6 +26,13 @@ interface Props {
   onTab: (t: "all" | "saved") => void;
   onHome: () => void;
   onLogout: () => void;
+  onAdmin: () => void;
+  /**
+   * 관리자 페이지에서는 로고와 계정 메뉴만 남긴다.
+   * 검색·기간·공시그룹·LIVE 는 목록에만 해당하는 것들이라 그대로 두면
+   * 눌러도 아무 일이 없는 조작부가 화면 위에 남는다.
+   */
+  minimal?: boolean;
 }
 
 const GROUPS: Group[] = ["equity", "periodic"];
@@ -37,7 +45,7 @@ const INPUT =
 
 export function FilterBar({
   group, type, q, from, to, total, live, streamConnected, me, tab,
-  onChange, onToggleLive, onTab, onLogout, onHome,
+  onChange, onToggleLive, onTab, onLogout, onHome, onAdmin, minimal,
 }: Props) {
   const [open, setOpen] = useState(false);   // 모바일에서 필터 접기
 
@@ -61,6 +69,7 @@ export function FilterBar({
           </span>
         )}
 
+        {!minimal && (
         <div className="flex shrink-0 rounded bg-slate-100 p-0.5 dark:bg-slate-800">
           {(["all", "saved"] as const).map(t => (
             <button
@@ -77,29 +86,24 @@ export function FilterBar({
             </button>
           ))}
         </div>
+        )}
 
         {/* 데스크톱: 날짜·검색을 1행에 펼친다. 그룹 탭은 2행 전용이다 */}
-        <div className="hidden flex-wrap items-center gap-2 lg:flex">
-          <DateSearch q={q} from={from} to={to} onChange={onChange} />
-        </div>
+        {!minimal && (
+          <div className="hidden flex-wrap items-center gap-2 lg:flex">
+            <DateSearch q={q} from={from} to={to} onChange={onChange} />
+          </div>
+        )}
 
         <div className="ml-auto flex shrink-0 items-center gap-2">
-          <span className="hidden text-xs text-slate-500 dark:text-slate-400 sm:inline">
-            {total.toLocaleString()}건
-          </span>
+          {!minimal && (
+            <span className="hidden text-xs text-slate-500 dark:text-slate-400 sm:inline">
+              {total.toLocaleString()}건
+            </span>
+          )}
 
           {me?.authenticated ? (
-            <div className="flex items-center gap-1">
-              <span className="hidden max-w-20 truncate text-xs text-slate-600 dark:text-slate-300 sm:inline">
-                {me.nickname || "사용자"}
-              </span>
-              <button
-                onClick={onLogout}
-                className="rounded px-1.5 py-0.5 text-xs text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800"
-              >
-                로그아웃
-              </button>
-            </div>
+            <AccountMenu me={me} onAdmin={onAdmin} onLogout={onLogout} />
           ) : (
             <a
               href={KAKAO_LOGIN_URL}
@@ -109,6 +113,7 @@ export function FilterBar({
             </a>
           )}
 
+          {!minimal && (
           <button
             onClick={onToggleLive}
             title={
@@ -129,20 +134,23 @@ export function FilterBar({
             />
             <span className="hidden sm:inline">{live && !streamConnected ? "POLL" : "LIVE"}</span>
           </button>
+          )}
 
           {/* 모바일: 필터 토글 */}
-          <button
-            onClick={() => setOpen(v => !v)}
-            aria-expanded={open}
-            className="rounded border border-slate-300 px-2 py-1 text-xs text-slate-600 lg:hidden dark:border-slate-600 dark:text-slate-300"
-          >
-            필터 {open ? "▲" : "▼"}
-          </button>
+          {!minimal && (
+            <button
+              onClick={() => setOpen(v => !v)}
+              aria-expanded={open}
+              className="rounded border border-slate-300 px-2 py-1 text-xs text-slate-600 lg:hidden dark:border-slate-600 dark:text-slate-300"
+            >
+              필터 {open ? "▲" : "▼"}
+            </button>
+          )}
         </div>
       </div>
 
       {/* 2행: 공시 그룹 탭 + 상세 유형. 저장목록은 필터를 적용하지 않으므로 감춘다 */}
-      {tab === "all" && (
+      {!minimal && tab === "all" && (
         <div className="flex items-center gap-2 border-t border-slate-100 px-3 py-1.5 sm:px-4 dark:border-slate-800">
           <div className="flex shrink-0 rounded bg-slate-100 p-0.5 dark:bg-slate-800">
             {GROUPS.map(g => (
@@ -177,7 +185,7 @@ export function FilterBar({
       )}
 
       {/* 3행: 모바일에서만, 토글로 펼친다 */}
-      {open && (
+      {!minimal && open && (
         <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 px-3 py-2 lg:hidden dark:border-slate-800">
           <DateSearch q={q} from={from} to={to} onChange={onChange} />
           <span className="ml-auto text-xs text-slate-500">{total.toLocaleString()}건</span>

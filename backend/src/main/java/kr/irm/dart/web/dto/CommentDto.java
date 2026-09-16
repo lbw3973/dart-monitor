@@ -14,14 +14,18 @@ import java.util.List;
  * 읽어 시간 표시가 통째로 어긋난다.
  */
 public record CommentDto(
-        Long id, String author, boolean mine, String body,
-        Instant createdAt, boolean deleted, List<CommentDto> replies) {
+        Long id, String author, boolean mine,
+        /** 삭제 버튼을 그릴지. 내 글이거나 내가 관리자일 때 참이다. */
+        boolean deletable,
+        String body, Instant createdAt, boolean deleted, List<CommentDto> replies) {
 
-    public static CommentDto of(Comment c, String author, boolean mine, List<CommentDto> replies) {
+    public static CommentDto of(Comment c, String author, boolean mine, boolean admin,
+                                List<CommentDto> replies) {
         return new CommentDto(
                 c.getId(),
                 author,
                 mine,
+                (mine || admin) && !c.isDeleted(),
                 c.isDeleted() ? "" : c.getBody(),
                 c.getCreatedAt(),
                 c.isDeleted(),

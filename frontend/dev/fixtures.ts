@@ -1,8 +1,8 @@
 import type {
-  Comment, DisclosureDetail, DisclosureSummary, PageResponse, Section,
+  AdminUser, Comment, DisclosureDetail, DisclosureSummary, PageResponse, Section,
 } from "../src/types.ts";
 
-export type { Comment, DisclosureDetail, DisclosureSummary, PageResponse, Section };
+export type { AdminUser, Comment, DisclosureDetail, DisclosureSummary, PageResponse, Section };
 
 /** src/api.ts 의 Stats 와 같은 모양. 그쪽은 DOM(fetch)을 함께 들고 있어 여기에 다시 적는다. */
 export interface Stats {
@@ -265,12 +265,16 @@ export function seedComments(): StoredComment[] {
  * 평평한 목록을 화면이 쓰는 모양(최상위 + 답글)으로 묶는다.
  * authed=false 면 내 글 판정도 끈다 — 실제 백엔드가 세션으로 정하는 값이다.
  */
-export function threadOf(rceptNo: string, all: StoredComment[], authed = true): Comment[] {
+export function threadOf(
+  rceptNo: string, all: StoredComment[], authed = true, admin = false,
+): Comment[] {
   const mine = all.filter(c => c.rceptNo === rceptNo);
   const view = (c: StoredComment): Comment => ({
     id: c.id,
     author: c.author,
     mine: authed && c.mine,
+    // 관리자는 남의 의견도 지울 수 있다(§CommentService.remove)
+    deletable: ((authed && c.mine) || (authed && admin)) && !c.deleted,
     body: c.deleted ? "" : c.body,
     createdAt: c.createdAt,
     deleted: c.deleted,
@@ -286,4 +290,19 @@ export function threadOf(rceptNo: string, all: StoredComment[], authed = true): 
         .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
         .map(view),
     }));
+}
+
+/* ── 관리자 ── */
+
+/** 실제 백엔드는 카카오 uid 를 저장한다. 이메일은 받지 않는다(§KakaoOAuthClient scope). */
+export function seedUsers(): AdminUser[] {
+  const days = (n: number) => new Date(Date.now() - n * 86_400_000).toISOString();
+  return [
+    { id: 1, nickname: "테스트 계정", providerUid: "kakao-1000001", admin: true,
+      createdAt: days(120), lastLoginAt: days(0), me: true },
+    { id: 2, nickname: "이준호", providerUid: "kakao-1000002", admin: false,
+      createdAt: days(41), lastLoginAt: days(1), me: false },
+    { id: 3, nickname: "박서연", providerUid: "kakao-1000003", admin: false,
+      createdAt: days(12), lastLoginAt: days(2), me: false },
+  ];
 }

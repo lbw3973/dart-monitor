@@ -15,6 +15,8 @@ export interface ViewState {
   to: string;
   page: number;
   selected: string | null;
+  /** 관리자 페이지. 라우터를 들이지 않고 기존 쿼리스트링 구조에 얹는다. */
+  admin: boolean;
 }
 
 const ymd = (d: Date) => d.toISOString().slice(0, 10);
@@ -41,6 +43,7 @@ function parse(search: string): ViewState {
     to: p.get("to") ?? range.to,
     page: Math.max(0, Number(p.get("page") ?? 0) || 0),
     selected: p.get("sel"),
+    admin: p.get("admin") === "1",
   };
 }
 
@@ -60,6 +63,7 @@ function stringify(s: ViewState): string {
   if (s.to !== range.to) p.set("to", s.to);
   if (s.page > 0) p.set("page", String(s.page));
   if (s.selected) p.set("sel", s.selected);
+  if (s.admin) p.set("admin", "1");
   const qs = p.toString();
   return qs ? `?${qs}` : location.pathname;
 }
@@ -114,7 +118,8 @@ export function useUrlState() {
   /** 헤더 로고 — 필터·선택을 모두 비우고 처음 화면으로 */
   const goHome = useCallback(() => {
     const range = defaultRange();
-    update({ tab: "all", group: DEFAULT_GROUP, type: "", q: "", ...range, page: 0, selected: null });
+    update({ tab: "all", group: DEFAULT_GROUP, type: "", q: "", ...range,
+             page: 0, selected: null, admin: false });
   }, [update]);
 
   return { state, update, goBack, goHome, depth } as const;

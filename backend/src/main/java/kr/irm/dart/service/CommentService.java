@@ -38,8 +38,11 @@ public class CommentService {
 
         Map<Long, String> names = namesOf(all);
         Long myId = me == null ? null : me.getId();
+        // 관리자는 남의 의견도 지울 수 있다(§remove) — 화면에도 그 버튼이 보여야 한다
+        boolean admin = me != null && me.isAdmin();
         Function<Comment, CommentDto> view = c -> CommentDto.of(
-                c, names.getOrDefault(c.getUserId(), "사용자"), c.getUserId().equals(myId), null);
+                c, names.getOrDefault(c.getUserId(), "사용자"),
+                c.getUserId().equals(myId), admin, null);
 
         Map<Long, List<Comment>> byParent = all.stream()
                 .filter(c -> c.getParentId() != null)
@@ -53,7 +56,7 @@ public class CommentService {
                     List<CommentDto> replies = byParent.getOrDefault(c.getId(), List.of())
                             .stream().map(view).toList();
                     return CommentDto.of(c, names.getOrDefault(c.getUserId(), "사용자"),
-                            c.getUserId().equals(myId), replies);
+                            c.getUserId().equals(myId), admin, replies);
                 })
                 .toList();
     }
@@ -86,7 +89,8 @@ public class CommentService {
         Comment saved = comments.save(new Comment(rceptNo, user.getId(), parent, body));
         String name = user.getNickname() == null || user.getNickname().isBlank()
                 ? "사용자" : user.getNickname();
-        return CommentDto.of(saved, name, true, parent == null ? List.of() : null);
+        return CommentDto.of(saved, name, true, user.isAdmin(),
+                parent == null ? List.of() : null);
     }
 
     @Transactional

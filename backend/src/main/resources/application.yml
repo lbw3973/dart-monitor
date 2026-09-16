@@ -42,6 +42,14 @@ dart:
   # app_setting 테이블의 'fetch.max-retry' 가 있으면 그 값이 우선한다. 여기는 폴백.
   max-retry: 18
 
+# 첫 관리자. 카카오 provider_uid 를 쉼표로 구분해 넣는다.
+# 이메일로는 지정할 수 없다 — scope 가 profile_nickname 뿐이라 이메일을 받지 않는다.
+# 본인 uid 는 한 번 로그인한 뒤 확인한다:
+#   docker exec dart-postgres psql -U dart -d dart -c \
+#     "SELECT provider_uid, nickname, role FROM app_user ORDER BY id;"
+admin:
+  uids: ${ADMIN_UIDS:}
+
 kakao:
   rest-api-key: ${KAKAO_REST_API_KEY}
   client-secret: ${KAKAO_CLIENT_SECRET:}

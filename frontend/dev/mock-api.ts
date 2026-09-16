@@ -1,7 +1,9 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { Plugin } from "vite";
-import type { DisclosureSummary, PageResponse, Stats, StoredComment } from "./fixtures.ts";
-import { detailOf, disclosures, seedComments, threadOf } from "./fixtures.ts";
+import type {
+  AdminUser, DisclosureSummary, PageResponse, Stats, StoredComment,
+} from "./fixtures.ts";
+import { detailOf, disclosures, seedComments, seedUsers, threadOf } from "./fixtures.ts";
 
 /**
  * MOCK_ANON=1 이면 로그아웃 상태로 띄운다(§package.json dev:anon).
@@ -14,6 +16,9 @@ interface Store {
   bookmarks: Set<string>;
   comments: StoredComment[];
   nextId: number;
+  users: AdminUser[];
+  /** 관리자가 내린 공시(§V7__disclosure_hidden.sql). 행은 지우지 않는다. */
+  hidden: Set<string>;
 }
 
 /**
@@ -31,6 +36,8 @@ export function mockApi(): Plugin {
     bookmarks: new Set<string>(),
     comments: seed,
     nextId: Math.max(...seed.map(c => c.id)) + 1,
+    users: seedUsers(),
+    hidden: new Set<string>(),
   };
 
   return {
@@ -56,8 +63,8 @@ function route(req: IncomingMessage, res: ServerResponse, store: Store): boolean
   if (path === "/api/stream") return stream(res);
 
   if (path === "/api/auth/me") {
-    return json(res, ANON ? { authenticated: false }
-                          : { authenticated: true, nickname: "테스트 계정" });
+    if (ANON) return json(res, { authenticated: false });
+    return json(res, { authenticated: true, nickname: "테스트 계정", admin: isAdmin(store) });
   }
   if (path === "/api/auth/logout") return json(res, {});
 
@@ -67,12 +74,16 @@ function route(req: IncomingMessage, res: ServerResponse, store: Store): boolean
   if (detailMatch) {
     const d = detailOf(detailMatch[1], bookmarks);
     if (!d) return json(res, { message: "not found" }, 404);
+    // 숨긴 공시는 공유 링크로도 열리지 않는다. 관리자만 확인·복구용으로 볼 수 있다.
+    if (store.hidden.has(detailMatch[1]) && !isAdmin(store)) {
+      return json(res, { message: "not found" }, 404);
+    }
     return json(res, { ...d, disclosure: mark(d.disclosure, store) });
   }
 
   const commentMatch = /^\/api\/disclosures\/(\d+)\/comments$/.exec(path);
   if (commentMatch && method === "GET") {
-    return json(res, threadOf(commentMatch[1], store.comments, !ANON));
+    return json(res, threadOf(commentMatch[1], store.comments, !ANON, isAdmin(store)));
   }
   if (commentMatch && method === "POST") {
     if (ANON) return json(res, { message: "로그인이 필요합니다" }, 401);
@@ -87,7 +98,8 @@ function route(req: IncomingMessage, res: ServerResponse, store: Store): boolean
   }
 
   if (path === "/api/bookmarks" && method === "GET") {
-    const saved = disclosures.filter(d => bookmarks.has(d.rceptNo));
+    const saved = disclosures.filter(
+      d => bookmarks.has(d.rceptNo) && !store.hidden.has(d.rceptNo));
     return json(res, page(saved.map(d => mark(d, store))));
   }
 
@@ -101,7 +113,114 @@ function route(req: IncomingMessage, res: ServerResponse, store: Store): boolean
 
   if (path === "/api/stats") return json(res, stats());
 
+  if (path.startsWith("/api/admin/")) return admin(req, res, path, method, store);
+
   return false;
+}
+
+/* ── 관리자 ── */
+
+/** 실제 백엔드는 AdminGuard 가 경로 단위로 막는다(§WebConfig.addInterceptors). */
+function admin(req: IncomingMessage, res: ServerResponse, path: string, method: string,
+               store: Store): boolean {
+  if (ANON) return json(res, { message: "로그인이 필요합니다" }, 401);
+  if (!isAdmin(store)) return json(res, { message: "관리자만 접근할 수 있습니다" }, 403);
+
+  if (path === "/api/admin/disclosures" && method === "GET") {
+    const url = new URL(req.url ?? "/", "http://localhost");
+    const q = (url.searchParams.get("q") ?? "").trim();
+    const hidden = url.searchParams.get("hidden");
+    const hit = disclosures.filter(d => {
+      const isHidden = store.hidden.has(d.rceptNo);
+      if (hidden === "true" && !isHidden) return false;
+      if (hidden === "false" && isHidden) return false;
+      if (q && !`${d.corpName} ${d.reportNm} ${d.rceptNo}`.includes(q)) return false;
+      return true;
+    });
+    return json(res, page(hit.map(d => adminView(d, store))));
+  }
+
+  const hideMatch = /^\/api\/admin\/disclosures\/(\d+)\/hidden$/.exec(path);
+  if (hideMatch && method === "PUT") {
+    void setHidden(req, res, hideMatch[1], store);
+    return true;
+  }
+
+  if (path === "/api/admin/comment-boards" && method === "GET") {
+    return json(res, boards(store));
+  }
+
+  if (path === "/api/admin/users" && method === "GET") return json(res, store.users);
+
+  const roleMatch = /^\/api\/admin\/users\/(\d+)\/admin$/.exec(path);
+  if (roleMatch && method === "PUT") {
+    void setAdmin(req, res, Number(roleMatch[1]), store);
+    return true;
+  }
+
+  return json(res, { message: "not found" }, 404);
+}
+
+function isAdmin(store: Store): boolean {
+  return store.users.some(u => u.me && u.admin);
+}
+
+function adminView(d: DisclosureSummary, store: Store) {
+  return {
+    rceptNo: d.rceptNo,
+    corpName: d.corpName,
+    reportNm: d.reportNm,
+    rceptDt: d.rceptDt,
+    parseStatus: d.parseStatus,
+    hidden: store.hidden.has(d.rceptNo),
+    hiddenAt: store.hidden.has(d.rceptNo) ? new Date().toISOString() : null,
+    commentCount: countOf(d.rceptNo, store),
+  };
+}
+
+async function setHidden(req: IncomingMessage, res: ServerResponse, rceptNo: string, store: Store) {
+  const body = (await readJson(req)) as { hidden?: boolean };
+  const d = disclosures.find(x => x.rceptNo === rceptNo);
+  if (!d) return json(res, { message: "공시를 찾을 수 없습니다" }, 404);
+  if (body.hidden) store.hidden.add(rceptNo);
+  else store.hidden.delete(rceptNo);
+  return json(res, adminView(d, store));
+}
+
+/** 의견이 달린 공시만, 최근에 달린 순으로 */
+function boards(store: Store) {
+  const live = store.comments.filter(c => !c.deleted);
+  const byNo = new Map<string, StoredComment[]>();
+  for (const c of live) {
+    byNo.set(c.rceptNo, [...(byNo.get(c.rceptNo) ?? []), c]);
+  }
+  return [...byNo.entries()]
+    .map(([rceptNo, cs]) => {
+      const d = disclosures.find(x => x.rceptNo === rceptNo);
+      const lastCommentAt = cs.map(c => c.createdAt).sort().at(-1) ?? "";
+      return {
+        rceptNo,
+        corpName: d?.corpName ?? rceptNo,
+        reportNm: d?.reportNm ?? "",
+        rceptDt: d?.rceptDt ?? "",
+        hidden: store.hidden.has(rceptNo),
+        commentCount: cs.length,
+        lastCommentAt,
+      };
+    })
+    .sort((a, b) => b.lastCommentAt.localeCompare(a.lastCommentAt));
+}
+
+async function setAdmin(req: IncomingMessage, res: ServerResponse, id: number, store: Store) {
+  const body = (await readJson(req)) as { admin?: boolean };
+  const target = store.users.find(u => u.id === id);
+  if (!target) return json(res, { message: "사용자를 찾을 수 없습니다" }, 404);
+  // 자기 권한은 스스로 못 내린다 — 마지막 관리자가 내리면 아무도 되돌릴 수 없다
+  if (target.me && !body.admin) {
+    return json(res, { message: "자신의 관리자 권한은 해제할 수 없습니다" }, 400);
+  }
+  target.admin = !!body.admin;
+  return json(res, target);
 }
 
 /** 목록 조회 — type·q·기간까지 실제처럼 걸러야 필터를 눌러본 결과가 말이 된다. */
@@ -112,6 +231,8 @@ function search(url: URL, store: Store): PageResponse<DisclosureSummary> {
   const to = url.searchParams.get("to");
 
   const hit = disclosures.filter(d => {
+    // 관리자가 내린 공시는 일반 목록에 나오지 않는다(§V7)
+    if (store.hidden.has(d.rceptNo)) return false;
     if (types.length > 0 && !types.includes(d.reportType)) return false;
     if (q && !`${d.corpName} ${d.reportNm} ${d.flrNm ?? ""}`.includes(q)) return false;
     if (from && d.rceptDt < from) return false;
@@ -126,8 +247,12 @@ function mark(d: DisclosureSummary, store: Store): DisclosureSummary {
   return {
     ...d,
     bookmarked: store.bookmarks.has(d.rceptNo),
-    commentCount: store.comments.filter(c => c.rceptNo === d.rceptNo && !c.deleted).length,
+    commentCount: countOf(d.rceptNo, store),
   };
+}
+
+function countOf(rceptNo: string, store: Store): number {
+  return store.comments.filter(c => c.rceptNo === rceptNo && !c.deleted).length;
 }
 
 /** 의견 등록. 답글의 답글은 여기서 막는다 — 스키마 CHECK 로는 표현되지 않는 규칙이다. */

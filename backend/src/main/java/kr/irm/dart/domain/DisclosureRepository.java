@@ -1,6 +1,8 @@
 package kr.irm.dart.domain;
 
 import org.springframework.data.domain.Limit;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
@@ -15,6 +17,11 @@ public interface DisclosureRepository
 
     @Query("select d.rceptNo from Disclosure d where d.rceptNo in :ids")
     List<String> findExistingIds(@Param("ids") Collection<String> ids);
+
+    @Query("select d.rceptNo from Disclosure d where d.rceptNo in :ids and d.hiddenAt is null")
+    List<String> findVisibleAmong(@Param("ids") Collection<String> ids);
+
+    Page<Disclosure> findByHiddenAtIsNotNull(Pageable pageable);
 
     /** 원본 미확보 건을 재시도 시각 기준으로 뽑는다. */
     @Query("""
@@ -35,8 +42,7 @@ public interface DisclosureRepository
            """, nativeQuery = true)
     List<String> findFetchedIds(@Param("limit") int limit);
 
-    org.springframework.data.domain.Page<Disclosure> findByRceptNoIn(
-            Collection<String> rceptNos, org.springframework.data.domain.Pageable pageable);
+    Page<Disclosure> findByRceptNoIn(Collection<String> rceptNos, Pageable pageable);
 
     long countByParseStatus(ParseStatus status);
 }

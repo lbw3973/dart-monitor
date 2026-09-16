@@ -1,8 +1,13 @@
 package kr.irm.dart.web;
 
+import kr.irm.dart.auth.CurrentUser;
+import kr.irm.dart.domain.AppUser;
 import kr.irm.dart.domain.ParseStatus;
+import kr.irm.dart.service.AdminService;
 import kr.irm.dart.service.BackfillService;
 import kr.irm.dart.service.ParseService;
+import kr.irm.dart.web.dto.AdminDto.*;
+import kr.irm.dart.web.dto.PageResponse;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.*;
@@ -11,21 +16,71 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
-/** 운영용 — 서식 개정으로 파싱 룰을 고친 뒤 재처리할 때 쓴다. */
+/**
+ * 관리자 API.
+ *
+ * 접근 통제는 경로 단위로 AdminGuard 가 한다(§WebConfig.addInterceptors) —
+ * 여기 메서드마다 검사를 반복하지 않는다.
+ */
 @RestController
 @RequestMapping("/api/admin")
 public class AdminController {
 
     private final ParseService parseService;
     private final BackfillService backfillService;
+    private final AdminService admin;
     private final JdbcTemplate jdbc;
 
     public AdminController(ParseService parseService, BackfillService backfillService,
-                           JdbcTemplate jdbc) {
+                           AdminService admin, JdbcTemplate jdbc) {
         this.parseService = parseService;
         this.backfillService = backfillService;
+        this.admin = admin;
         this.jdbc = jdbc;
     }
+
+    /* ── 공시 ── */
+
+    /** hidden 을 생략하면 전체, true 면 숨긴 것만, false 면 보이는 것만. */
+    @GetMapping("/disclosures")
+    public PageResponse<AdminDisclosure> disclosures(@RequestParam(required = false) String q,
+                                                     @RequestParam(required = false) Boolean hidden,
+                                                     @RequestParam(defaultValue = "0") int page,
+                                                     @RequestParam(defaultValue = "50") int size) {
+        return admin.disclosures(q, hidden, page, size);
+    }
+
+    @PutMapping("/disclosures/{rceptNo}/hidden")
+    public AdminDisclosure setHidden(@PathVariable String rceptNo, @RequestBody HiddenReq req) {
+        return admin.setHidden(rceptNo, req.hidden());
+    }
+
+    public record HiddenReq(boolean hidden) {}
+
+    /* ── 의견 ── */
+
+    /** 의견이 달린 공시만. 개별 삭제는 DELETE /api/comments/{id} 가 그대로 받는다. */
+    @GetMapping("/comment-boards")
+    public List<CommentBoard> commentBoards(@RequestParam(defaultValue = "50") int limit) {
+        return admin.commentBoards(limit);
+    }
+
+    /* ── 사용자 ── */
+
+    @GetMapping("/users")
+    public List<AdminUser> users(@CurrentUser AppUser me) {
+        return admin.users(me);
+    }
+
+    @PutMapping("/users/{id}/admin")
+    public AdminUser setAdmin(@CurrentUser AppUser me, @PathVariable Long id,
+                              @RequestBody AdminReq req) {
+        return admin.setAdmin(me, id, req.admin());
+    }
+
+    public record AdminReq(boolean admin) {}
+
+    /* ── 수집·파싱 운영 ── */
 
     /**
      * 과거 구간 소급 수집. 하루 단위로 훑으므로 구간이 길면 시간이 걸린다.

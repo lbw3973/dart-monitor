@@ -1,5 +1,6 @@
 import type {
-  Comment, DisclosureDetail, DisclosureSummary, Group, Me, PageResponse, ReportType,
+  AdminDisclosure, AdminUser, Comment, CommentBoard, DisclosureDetail, DisclosureSummary,
+  Group, Me, PageResponse, ReportType,
 } from "./types";
 import { GROUP_TYPES } from "./types";
 
@@ -106,4 +107,44 @@ export async function addComment(rceptNo: string, body: string, parentId?: numbe
 
 export function removeComment(id: number) {
   return mutate(`/api/comments/${id}`, "DELETE");
+}
+
+/* ── 관리자 ── */
+
+/** hidden 을 생략하면 전체, true 면 숨긴 것만, false 면 보이는 것만 */
+export function fetchAdminDisclosures(q: string, hidden: boolean | null, page = 0) {
+  const qs = new URLSearchParams();
+  if (q.trim()) qs.set("q", q.trim());
+  if (hidden !== null) qs.set("hidden", String(hidden));
+  qs.set("page", String(page));
+  qs.set("size", "50");
+  return get<PageResponse<AdminDisclosure>>(`/api/admin/disclosures?${qs}`);
+}
+
+async function send<T>(path: string, method: "PUT" | "POST", body?: unknown): Promise<T> {
+  const res = await fetch(path, {
+    method,
+    headers: { "Content-Type": "application/json" },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  if (res.status === 401) throw new Error("UNAUTHORIZED");
+  if (res.status === 403) throw new Error("FORBIDDEN");
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  return res.json() as Promise<T>;
+}
+
+export function setDisclosureHidden(rceptNo: string, hidden: boolean) {
+  return send<AdminDisclosure>(`/api/admin/disclosures/${rceptNo}/hidden`, "PUT", { hidden });
+}
+
+export function fetchCommentBoards(limit = 50) {
+  return get<CommentBoard[]>(`/api/admin/comment-boards?limit=${limit}`);
+}
+
+export function fetchAdminUsers() {
+  return get<AdminUser[]>("/api/admin/users");
+}
+
+export function setUserAdmin(id: number, admin: boolean) {
+  return send<AdminUser>(`/api/admin/users/${id}/admin`, "PUT", { admin });
 }

@@ -1,5 +1,6 @@
 import type { DisclosureSummary } from "../types";
 import { CORP_CLS_LABEL, CORP_CLS_STYLE, REPORT_TYPE_LABEL, REPORT_TYPE_STYLE } from "../types";
+import { ChatIcon } from "./CommentBar";
 import { StarButton } from "./StarButton";
 
 interface Props {
@@ -51,7 +52,22 @@ export function DisclosureList({ items, selected, loading, emptyText, onSelect, 
                     {d.parseStatus === "FAILED" ? "⚠ 파싱실패" : "수집중"}
                   </span>
                 )}
-                <span className="ml-auto shrink-0 text-[10px] tabular-nums text-slate-400">
+                {/* 의견이 없으면 아예 안 보인다 — 첫 줄이 이미 배지로 빽빽해서
+                    0을 늘어놓으면 정작 유형 배지가 묻힌다 */}
+                {(d.commentCount ?? 0) > 0 && (
+                  <span
+                    title={`의견 ${d.commentCount}개`}
+                    className="ml-auto flex shrink-0 items-center gap-0.5 text-[10px] tabular-nums text-slate-400"
+                  >
+                    <ChatIcon />
+                    {d.commentCount}
+                  </span>
+                )}
+                <span
+                  className={`shrink-0 text-[10px] tabular-nums text-slate-400 ${
+                    (d.commentCount ?? 0) > 0 ? "" : "ml-auto"
+                  }`}
+                >
                   {d.rceptDt.slice(5)}
                 </span>
                 <StarButton marked={d.bookmarked} onToggle={() => onToggleBookmark(d)} />

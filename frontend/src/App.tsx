@@ -5,6 +5,7 @@ import {
   addBookmark, fetchBookmarks, fetchDetail, fetchDisclosures, fetchMe,
   KAKAO_LOGIN_URL, logout, removeBookmark,
 } from "./api";
+import { AdminPage } from "./components/AdminPage";
 import { ConsentBanner } from "./components/ConsentBanner";
 import { DetailPane } from "./components/DetailPane";
 import { DisclosureList } from "./components/DisclosureList";
@@ -44,6 +45,12 @@ export default function App() {
   useEffect(() => {
     if (!authed && tab === "saved") setView({ tab: "all" }, true);
   }, [authed, tab, setView]);
+
+  // ?admin=1 을 직접 붙여 들어와도 권한이 없으면 일반 화면으로 되돌린다.
+  // 서버가 403으로 막지만(§AdminGuard) 빈 화면을 보여줄 이유는 없다.
+  useEffect(() => {
+    if (view.admin && meQuery.isFetched && !meQuery.data?.admin) setView({ admin: false }, true);
+  }, [view.admin, meQuery.isFetched, meQuery.data?.admin, setView]);
 
   // SSE가 살아 있으면 폴링은 불필요하다. 끊기면 자동으로 30초 폴링이 공백을 메운다.
   const streamConnected = useDisclosureStream({
@@ -127,6 +134,8 @@ export default function App() {
         onToggleLive={() => setLive(v => !v)}
         onTab={switchTab}
         onHome={goHome}
+        onAdmin={() => setView({ admin: true, selected: null })}
+        minimal={view.admin}
         onLogout={async () => {
           await logout();
           qc.invalidateQueries();
@@ -134,6 +143,13 @@ export default function App() {
         }}
       />
 
+      {/* 관리자 페이지는 목록·상세를 통째로 대신한다. 헤더는 그대로 둬서 나가는 길을 남긴다. */}
+      {view.admin ? (
+        <AdminPage
+          onClose={() => setView({ admin: false })}
+          onNotice={(text, tone) => setToast({ text, tone })}
+        />
+      ) : (
       <main className="flex min-h-0 flex-1">
         {/* 모바일에서는 상세를 보는 동안 목록을 숨긴다 (단일 컬럼) */}
         <aside
@@ -198,6 +214,7 @@ export default function App() {
           />
         </section>
       </main>
+      )}
 
       <Toast message={toast} onDismiss={() => setToast(null)} />
       <ConsentBanner />

@@ -43,8 +43,9 @@ export interface DisclosureSummary {
 export interface Comment {
   id: number;
   author: string;
-  /** 내가 쓴 글이면 삭제할 수 있다 */
   mine: boolean;
+  /** 삭제 버튼을 그릴지. 내 글이거나 내가 관리자일 때 참이다. */
+  deletable: boolean;
   body: string;
   createdAt: string;
   /** 답글이 달린 의견을 지우면 자리만 남긴다 — 대화가 끊기지 않게 */
@@ -151,3 +152,40 @@ export const CORP_CLS_STYLE: Record<CorpCls, string> = {
   N: "text-slate-400 dark:text-slate-500",
   E: "text-slate-400 dark:text-slate-500",
 };
+
+/* ── 관리자 ── */
+
+export interface AdminDisclosure {
+  rceptNo: string;
+  corpName: string;
+  reportNm: string;
+  rceptDt: string;
+  parseStatus: ParseStatus;
+  /** 관리자가 내린 공시. 행은 남아 있어 되돌릴 수 있다. */
+  hidden: boolean;
+  hiddenAt: string | null;
+  commentCount: number;
+}
+
+/** 의견이 달린 공시만 추린 목록 — 어디에 의견이 달렸는지 찾는 화면이다. */
+export interface CommentBoard {
+  rceptNo: string;
+  corpName: string;
+  reportNm: string;
+  rceptDt: string;
+  hidden: boolean;
+  commentCount: number;
+  lastCommentAt: string;
+}
+
+/** 카카오가 이메일을 주지 않아 닉네임이 겹칠 수 있다. providerUid·가입일로 구분한다. */
+export interface AdminUser {
+  id: number;
+  nickname: string;
+  providerUid: string;
+  admin: boolean;
+  createdAt: string;
+  lastLoginAt: string | null;
+  /** 나 자신 — 내 권한은 내가 못 내린다 */
+  me: boolean;
+}
