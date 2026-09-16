@@ -45,6 +45,33 @@ public class TableConverter {
         return "<%s>%s</%s>".formatted(tag, escapeText(cellText(el)), tag);
     }
 
+    /**
+     * 본문 이미지. 파일은 원본 ZIP에 없고 뷰어 경로로만 받을 수 있다.
+     *
+     * dcmNo를 얻지 못했으면(비공식 경로라 실패할 수 있다) 자리표시만 남긴다 —
+     * 그림이 있었다는 사실은 알려야 사용자가 DART 원문을 확인할 수 있다.
+     */
+    public String toImageHtml(Element image, String dcmNo) {
+        Element img = image.getElementsByTag("IMG").first();
+        Element cap = image.getElementsByTag("IMG-CAPTION").first();
+        String file = img == null ? "" : cellText(img);
+        String caption = cap == null ? "" : cellText(cap);
+        String alt = caption.isBlank() ? file : caption;
+
+        if (dcmNo == null || dcmNo.isBlank() || file.isBlank()) {
+            return "<p class=\"dart-image-missing\">[이미지] %s</p>".formatted(escapeText(alt));
+        }
+        String src = "https://dart.fss.or.kr/report/download.do?dcmNo=%s&flNm=%s"
+                .formatted(urlEncode(dcmNo), urlEncode(file));
+        return "<figure><img src=\"%s\" alt=\"%s\" loading=\"lazy\"/>%s</figure>".formatted(
+                escapeAttr(src), escapeAttr(alt),
+                caption.isBlank() ? "" : "<figcaption>" + escapeText(caption) + "</figcaption>");
+    }
+
+    private static String urlEncode(String s) {
+        return java.net.URLEncoder.encode(s, java.nio.charset.StandardCharsets.UTF_8);
+    }
+
     public String toHtml(Element table) {
         StringBuilder sb = new StringBuilder();
         writeElement(table, sb, semanticClass(table));

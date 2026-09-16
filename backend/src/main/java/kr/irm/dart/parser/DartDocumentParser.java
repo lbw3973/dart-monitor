@@ -48,13 +48,15 @@ public class DartDocumentParser {
         this.converter = converter;
     }
 
-    public ParseResult parse(byte[] zipBytes, String rceptNo, ReportType type) throws IOException {
+    /** @param dcmNo DART 뷰어 문서번호. 본문 이미지 주소에 쓰인다. 없으면 자리표시로 대체된다. */
+    public ParseResult parse(byte[] zipBytes, String rceptNo, ReportType type, String dcmNo)
+            throws IOException {
         String xml = extractMainXml(zipBytes, rceptNo);
         if (xml.length() > MAX_XML_CHARS) {
             throw new DocumentTooLargeException(
                     "본문 %,d자가 상한 %,d자를 초과".formatted(xml.length(), MAX_XML_CHARS));
         }
-        return parseXml(xml, type);
+        return parseXml(xml, type, dcmNo);
     }
 
     /** ZIP에서 본문 XML을 꺼낸다. 본문 파일명은 {rcept_no}.xml (M0 실측). */
@@ -88,7 +90,7 @@ public class DartDocumentParser {
         return new String(data, StandardCharsets.UTF_8);
     }
 
-    public ParseResult parseXml(String xml, ReportType type) {
+    public ParseResult parseXml(String xml, ReportType type, String dcmNo) {
         ParseRules.RuleSet ruleSet = rules.forType(type);
         if (ruleSet == null) {
             return new ParseResult(List.of(), List.of("서식에 대한 룰 없음: " + type));
@@ -125,12 +127,17 @@ public class DartDocumentParser {
 
             int seq = seqBase(out, rule.sectionNo());
             for (Element block : blocks) {
-                boolean isTable = block.tagName().equalsIgnoreCase("TABLE");
+                String tag = block.tagName().toUpperCase(Locale.ROOT);
+                String html = switch (tag) {
+                    case "TABLE" -> converter.toHtml(block);
+                    case "IMAGE" -> converter.toImageHtml(block, dcmNo);
+                    default -> converter.toTextHtml(block);
+                };
                 out.add(new ExtractedSection(
-                        rule.sectionNo(), rule.id(), title, seq++,
-                        isTable ? converter.toHtml(block) : converter.toTextHtml(block),
-                        isTable ? converter.toJson(block) : null,
-                        isTable ? converter.toPlainText(List.of(block)) : TableConverter.cellText(block)));
+                        rule.sectionNo(), rule.id(), title, seq++, html,
+                        tag.equals("TABLE") ? converter.toJson(block) : null,
+                        tag.equals("TABLE") ? converter.toPlainText(List.of(block))
+                                            : TableConverter.cellText(block)));
             }
         }
         return new ParseResult(out, warnings);
@@ -183,7 +190,6 @@ public class DartDocumentParser {
      * 어느 표가 무엇인지 구분이 안 되기 때문이다.
      *
      * TABLE은 통째로 담고 안으로 내려가지 않는다(표 안의 문단은 셀 텍스트로 이미 처리된다).
-     * IMAGE는 ZIP에 파일이 없어 렌더할 수 없으므로 자연히 빠진다.
      */
     private static void collectBlocks(Element node, Element ownTitle, List<Element> out) {
         for (Element child : node.children()) {
@@ -191,6 +197,9 @@ public class DartDocumentParser {
                 case "TABLE" -> out.add(child);
                 case "P" -> { if (!child.text().isBlank()) out.add(child); }
                 case "TITLE" -> { if (child != ownTitle && !child.text().isBlank()) out.add(child); }
+                // 이미지 파일은 ZIP에 없어 뷰어 경로로 받아야 한다(§TableConverter.toImageHtml).
+                // 버리면 원문에 그림이 있었다는 사실조차 남지 않는다.
+                case "IMAGE" -> out.add(child);
                 default -> collectBlocks(child, ownTitle, out);
             }
         }

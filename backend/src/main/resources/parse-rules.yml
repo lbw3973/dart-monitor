@@ -39,5 +39,9 @@ dart:
         - { sectionNo: "1", id: "D-0-7-0-0",  expect: "주주에 관한 사항" }
         - { sectionNo: "2", id: "D-0-1-4-0",  expect: "주식의 총수 등" }
         - { sectionNo: "3", id: "D-0-10-0-0", expect: "대주주 등과의 거래내용" }
+        # 장(章) 전체라 하위 7개 절(L-0-2-*)이 함께 들어온다. 절을 따로 지정하면 중복된다.
+        # 회사 규모에 따라 편차가 극심하다 — 실측: 리츠 1KB / 중형주 61~95KB / SK 2,089KB.
+        # 지분 정보와 직접 관련이 없어 맨 뒤에 둔다(sectionNo가 화면 순서다).
+        - { sectionNo: "4", id: "D-0-2-0-0",  expect: "사업의 내용" }
     HALF_YEAR_REPORT: *periodic
     QUARTER_REPORT: *periodic

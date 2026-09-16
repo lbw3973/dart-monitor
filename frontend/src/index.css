@@ -56,3 +56,31 @@
   .dart-table h4 { color: var(--color-slate-200); }
   .dart-table p { color: var(--color-slate-400); }
 }
+
+/* 본문 이미지. 파일이 원본 ZIP에 없어 DART 뷰어에서 직접 불러온다.
+   원문 그림이 1600px를 넘기도 하므로 폭에 맞춰 줄인다. */
+.dart-table figure {
+  margin: 0;
+}
+.dart-table figure img {
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--color-slate-300);
+  border-radius: 2px;
+}
+.dart-table figcaption {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--color-slate-500);
+}
+/* 뷰어 문서번호를 얻지 못했을 때의 자리표시 — 그림이 있었다는 사실은 남긴다 */
+.dart-table p.dart-image-missing {
+  font-size: 11px;
+  color: var(--color-slate-400);
+  font-style: italic;
+}
+
+@media (prefers-color-scheme: dark) {
+  .dart-table figure img { border-color: var(--color-slate-600); }
+  .dart-table figcaption { color: var(--color-slate-400); }
+}

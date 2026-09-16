@@ -56,6 +56,10 @@ public class Disclosure {
     @Column(name = "raw_file_path")
     private String rawFilePath;
 
+    /** DART 뷰어 문서번호. 본문 이미지 주소를 만드는 데 쓴다. 못 얻으면 null. */
+    @Column(name = "dcm_no", length = 16)
+    private String dcmNo;
+
     @Column(name = "discovered_at", nullable = false, updatable = false)
     private Instant discoveredAt = Instant.now();
 
@@ -146,6 +150,8 @@ public class Disclosure {
     public int getRetryCount() { return retryCount; }
     public String getRawFilePath() { return rawFilePath; }
     public String getStockCode() { return stockCode; }
+    public String getDcmNo() { return dcmNo; }
+    public void setDcmNo(String dcmNo) { this.dcmNo = dcmNo; }
     public String getCorpCls() { return corpCls; }
     public String getParseError() { return parseError; }
     public java.time.Instant getParsedAt() { return parsedAt; }

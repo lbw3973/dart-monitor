@@ -106,8 +106,14 @@ export function DetailPane({ detail, loading, error, onToggleBookmark, onBack, o
  */
 function Block({ html }: { html: string }) {
   // 백엔드가 화이트리스트로 재구성한 HTML이지만, 브라우저 삽입 전 한 번 더 정화한다
+  // 본문 이미지는 DART 뷰어에서 직접 불러온다(원본 ZIP에 파일이 없다).
+  // 외부 주소를 허용해야 하므로 호스트를 dart.fss.or.kr 로 한정한다.
   const clean = useMemo(
-    () => DOMPurify.sanitize(html, { USE_PROFILES: { html: true } }),
+    () =>
+      DOMPurify.sanitize(html, {
+        USE_PROFILES: { html: true },
+        ALLOWED_URI_REGEXP: /^https:\/\/dart\.fss\.or\.kr\//,
+      }),
     [html],
   );
   const spacing = html.startsWith("<h4")

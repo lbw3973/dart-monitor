@@ -1,5 +1,6 @@
 package kr.irm.dart.service;
 
+import kr.irm.dart.collector.DartViewerClient;
 import kr.irm.dart.domain.*;
 import kr.irm.dart.parser.DartDocumentParser;
 import kr.irm.dart.parser.DocumentTooLargeException;
@@ -23,13 +24,16 @@ public class ParseService {
     private final DisclosureSectionRepository sections;
     private final DartDocumentParser parser;
     private final DisclosureEventPublisher events;
+    private final DartViewerClient viewer;
 
     public ParseService(DisclosureRepository disclosures, DisclosureSectionRepository sections,
-                        DartDocumentParser parser, DisclosureEventPublisher events) {
+                        DartDocumentParser parser, DisclosureEventPublisher events,
+                        DartViewerClient viewer) {
         this.disclosures = disclosures;
         this.sections = sections;
         this.parser = parser;
         this.events = events;
+        this.viewer = viewer;
     }
 
     /** 보관된 원본 ZIP을 파싱해 섹션을 저장한다. 재파싱해도 안전하도록 기존 섹션은 지우고 다시 쓴다. */
@@ -50,7 +54,8 @@ public class ParseService {
                 return;
             }
 
-            ParseResult result = parser.parse(Files.readAllBytes(path), rceptNo, d.getReportType());
+            ParseResult result = parser.parse(
+                    Files.readAllBytes(path), rceptNo, d.getReportType(), resolveDcmNo(d));
 
             if (result.sections().isEmpty()) {
                 d.markParseFailed("추출된 섹션 없음 " + result.warnings());
@@ -87,6 +92,17 @@ public class ParseService {
             disclosures.save(d);
             log.error("파싱 오류 {}", rceptNo, e);
         }
+    }
+
+    /**
+     * 본문 이미지 주소에 필요한 뷰어 문서번호. 정기공시에만 이미지가 있으므로 그때만 조회한다.
+     * 한 번 얻으면 저장해 두고 재파싱 때 다시 긁지 않는다. 실패해도 null로 진행한다.
+     */
+    private String resolveDcmNo(Disclosure d) {
+        if (!d.getReportType().isPeriodic() || d.getDcmNo() != null) return d.getDcmNo();
+        String dcmNo = viewer.findDcmNo(d.getRceptNo()).orElse(null);
+        if (dcmNo != null) d.setDcmNo(dcmNo);   // 아래 markParsed 시점에 함께 저장된다
+        return dcmNo;
     }
 
     @Transactional(readOnly = true)

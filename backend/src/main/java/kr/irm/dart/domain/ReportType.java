@@ -32,4 +32,9 @@ public enum ReportType {
     public boolean isTarget() {
         return this != OTHER;
     }
+
+    /** 정기공시는 본문에 이미지가 들어 있어 뷰어 문서번호가 추가로 필요하다. */
+    public boolean isPeriodic() {
+        return this == BUSINESS_REPORT || this == HALF_YEAR_REPORT || this == QUARTER_REPORT;
+    }
 }
