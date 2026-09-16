@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
+import { mockApi } from "./dev/mock-api.ts";
 
 /**
  * 화면에 표시할 프론트엔드 버전. 출처는 Makefile의 FRONTEND_VERSION 하나다.
@@ -24,7 +25,8 @@ export default defineConfig({
   define: {
     "import.meta.env.VITE_APP_VERSION": JSON.stringify(frontendVersion()),
   },
-  plugins: [react(), tailwindcss()],
+  // MOCK_API=1 이면 백엔드 없이 고정 데이터로 화면을 띄운다(§dev/mock-api.ts).
+  plugins: [react(), tailwindcss(), ...(process.env.MOCK_API ? [mockApi()] : [])],
   // 설정을 한 곳에 모은다 — 루트의 .env 를 읽는다.
   // VITE_ 로 시작하는 값만 번들에 노출된다.
   envDir: "..",
