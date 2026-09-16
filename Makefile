@@ -27,6 +27,7 @@ docker-frontend:                    ## 프론트만
 	docker build --platform $(PLATFORM) \
 		--build-arg VITE_KAKAO_JS_KEY=$(KAKAO_JS_KEY) \
 		--build-arg VITE_GA_ID=$(GA_ID) \
+		--build-arg VITE_APP_VERSION=$(FRONTEND_VERSION) \
 		-t $(IMAGE_NAME)-frontend:$(FRONTEND_VERSION) \
 		-t $(IMAGE_NAME)-frontend:$(LATEST) \
 		--push -f ./deploy/Dockerfile.frontend .

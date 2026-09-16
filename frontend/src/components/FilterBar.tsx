@@ -29,6 +29,9 @@ interface Props {
 
 const GROUPS: Group[] = ["equity", "periodic"];
 
+/** Makefile의 FRONTEND_VERSION 이 빌드 시 주입된다(§vite.config.ts). */
+const APP_VERSION = import.meta.env.VITE_APP_VERSION as string | undefined;
+
 const INPUT =
   "h-8 rounded border border-slate-300 bg-white px-2 text-xs dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100";
 
@@ -47,8 +50,16 @@ export function FilterBar({
           title="처음 화면으로"
           className="shrink-0 rounded px-1 text-sm font-semibold text-slate-800 transition hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-800"
         >
-          DART <span className="hidden sm:inline">지분공시</span>
+          DART
         </button>
+        {APP_VERSION && (
+          <span
+            title="프론트엔드 버전"
+            className="-ml-0.5 shrink-0 text-[10px] tabular-nums text-slate-400 dark:text-slate-600"
+          >
+            v{APP_VERSION}
+          </span>
+        )}
 
         <div className="flex shrink-0 rounded bg-slate-100 p-0.5 dark:bg-slate-800">
           {(["all", "saved"] as const).map(t => (

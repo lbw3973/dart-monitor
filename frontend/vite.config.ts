@@ -1,8 +1,29 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
+/**
+ * 화면에 표시할 프론트엔드 버전. 출처는 Makefile의 FRONTEND_VERSION 하나다.
+ *
+ * 도커 빌드에는 Makefile이 복사되지 않으므로 그쪽은 build-arg 로 주입된다(§Dockerfile.frontend).
+ * 개발 서버에서는 여기서 Makefile을 직접 읽어, 배포본과 같은 값을 그대로 보여준다.
+ */
+function frontendVersion(): string {
+  if (process.env.VITE_APP_VERSION) return process.env.VITE_APP_VERSION;
+  try {
+    const makefile = readFileSync(fileURLToPath(new URL("../Makefile", import.meta.url)), "utf8");
+    return makefile.match(/^FRONTEND_VERSION\s*=\s*(\S+)/m)?.[1] ?? "";
+  } catch {
+    return "";
+  }
+}
+
 export default defineConfig({
+  define: {
+    "import.meta.env.VITE_APP_VERSION": JSON.stringify(frontendVersion()),
+  },
   plugins: [react(), tailwindcss()],
   // 설정을 한 곳에 모은다 — 루트의 .env 를 읽는다.
   // VITE_ 로 시작하는 값만 번들에 노출된다.
