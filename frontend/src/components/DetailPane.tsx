@@ -19,6 +19,9 @@ DOMPurify.addHook("afterSanitizeAttributes", node => {
 const SANITIZE = { USE_PROFILES: { html: true }, ADD_TAGS: ["figure", "figcaption"] };
 import type { DisclosureDetail, Section } from "../types";
 import { REPORT_TYPE_LABEL, REPORT_TYPE_STYLE } from "../types";
+import { useCommentSheet } from "../useCommentSheet";
+import { CommentBar } from "./CommentBar";
+import { CommentSheet } from "./CommentSheet";
 import { ShareMenu } from "./ShareMenu";
 import { StarButton } from "./StarButton";
 
@@ -26,12 +29,18 @@ interface Props {
   detail: DisclosureDetail | undefined;
   loading: boolean;
   error: unknown;
+  authed: boolean;
   onToggleBookmark: () => void;
   onBack: () => void;
   onNotice: (msg: string, tone?: "info" | "warn") => void;
 }
 
-export function DetailPane({ detail, loading, error, onToggleBookmark, onBack, onNotice }: Props) {
+export function DetailPane({
+  detail, loading, error, authed, onToggleBookmark, onBack, onNotice,
+}: Props) {
+  // 훅은 아래 이른 반환보다 먼저 불러야 한다. 공시가 바뀌면 시트는 알아서 닫힌다.
+  const sheet = useCommentSheet(detail?.disclosure.rceptNo ?? null);
+
   if (loading) return <Placeholder text="불러오는 중…" />;
   if (error) return <Placeholder text="상세를 불러오지 못했습니다." />;
   if (!detail) return <Placeholder text="왼쪽 목록에서 공시를 선택하세요." />;
@@ -40,7 +49,7 @@ export function DetailPane({ detail, loading, error, onToggleBookmark, onBack, o
   const grouped = groupByTitle(detail.sections);
 
   return (
-    <div className="flex h-full flex-col overflow-hidden">
+    <div className="relative flex h-full flex-col overflow-hidden">
       <div className="border-b border-slate-200 px-3 py-3 sm:px-5 dark:border-slate-700">
         <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
           {/* 모바일 전용 — 목록으로 돌아간다 */}
@@ -112,6 +121,15 @@ export function DetailPane({ detail, loading, error, onToggleBookmark, onBack, o
           ))
         )}
       </div>
+
+      <CommentBar commentCount={d.commentCount} onOpen={sheet.openSheet} />
+      <CommentSheet
+        rceptNo={d.rceptNo}
+        open={sheet.open}
+        authed={authed}
+        onClose={sheet.close}
+        onNotice={onNotice}
+      />
     </div>
   );
 }

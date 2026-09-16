@@ -1,4 +1,6 @@
-import type { DisclosureDetail, DisclosureSummary, Group, Me, PageResponse, ReportType } from "./types";
+import type {
+  Comment, DisclosureDetail, DisclosureSummary, Group, Me, PageResponse, ReportType,
+} from "./types";
 import { GROUP_TYPES } from "./types";
 
 export interface SearchParams {
@@ -81,4 +83,27 @@ export function addBookmark(rceptNo: string) {
 
 export function removeBookmark(rceptNo: string) {
   return mutate(`/api/bookmarks/${rceptNo}`, "DELETE");
+}
+
+/* ── 의견 ── */
+
+/** 최상위 의견과 각 답글을 한 번에 받는다. 답글은 보통 몇 건이라 따로 페이징하지 않는다. */
+export function fetchComments(rceptNo: string) {
+  return get<Comment[]>(`/api/disclosures/${rceptNo}/comments`);
+}
+
+/** parentId 가 있으면 답글. 그 대상이 이미 답글이면 서버가 400을 돌려준다(답글의 답글 금지). */
+export async function addComment(rceptNo: string, body: string, parentId?: number) {
+  const res = await fetch(`/api/disclosures/${rceptNo}/comments`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ body, parentId }),
+  });
+  if (res.status === 401) throw new Error("UNAUTHORIZED");
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  return res.json() as Promise<Comment>;
+}
+
+export function removeComment(id: number) {
+  return mutate(`/api/comments/${id}`, "DELETE");
 }

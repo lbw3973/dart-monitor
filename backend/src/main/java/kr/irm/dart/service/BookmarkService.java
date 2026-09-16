@@ -18,10 +18,13 @@ public class BookmarkService {
 
     private final BookmarkRepository bookmarks;
     private final DisclosureRepository disclosures;
+    private final CommentService comments;
 
-    public BookmarkService(BookmarkRepository bookmarks, DisclosureRepository disclosures) {
+    public BookmarkService(BookmarkRepository bookmarks, DisclosureRepository disclosures,
+                           CommentService comments) {
         this.bookmarks = bookmarks;
         this.disclosures = disclosures;
+        this.comments = comments;
     }
 
     @Transactional
@@ -49,7 +52,9 @@ public class BookmarkService {
         Pageable pageable = PageRequest.of(Math.max(page, 0), Math.clamp(size, 1, 100),
                 Sort.by(Sort.Direction.DESC, "rceptDt", "rceptNo"));
         Page<Disclosure> found = disclosures.findByRceptNoIn(ids, pageable);
-        return PageResponse.of(found, d -> DisclosureSummary.from(d, true));
+        var counts = comments.countsAmong(found.getContent().stream().map(Disclosure::getRceptNo).toList());
+        return PageResponse.of(found, d ->
+                DisclosureSummary.from(d, true, counts.getOrDefault(d.getRceptNo(), 0)));
     }
 
     /** 목록 응답에 표시할 스크랩 여부를 한 번의 질의로 채운다. */

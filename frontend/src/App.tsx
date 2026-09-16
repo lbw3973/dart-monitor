@@ -115,7 +115,7 @@ export default function App() {
   const totalPages = listQuery.data?.totalPages ?? 0;
 
   return (
-    <div className="flex h-screen flex-col bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+    <div className="flex h-dvh flex-col bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
       <FilterBar
         {...filters}
         total={total}
@@ -189,6 +189,7 @@ export default function App() {
             detail={detailQuery.data}
             loading={detailQuery.isLoading}
             error={detailQuery.error}
+            authed={authed}
             onBack={goBack}
             onNotice={(text, tone) => setToast({ text, tone })}
             onToggleBookmark={() =>

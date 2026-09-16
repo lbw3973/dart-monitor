@@ -30,6 +30,26 @@ export interface DisclosureSummary {
   parseStatus: ParseStatus;
   dartUrl: string;
   bookmarked: boolean;
+  /** 답글까지 포함한 의견 수. 저장 수는 공개하지 않는다 — 스크랩은 개인 기능이다. */
+  commentCount?: number;
+}
+
+/**
+ * 공시에 달린 의견.
+ *
+ * 답글은 1단까지다 — 최상위 의견만 replies 를 갖고, 답글에는 아예 없다.
+ * 화면에도 답글에는 "답글" 버튼을 그리지 않아 더 들어갈 길을 없앤다.
+ */
+export interface Comment {
+  id: number;
+  author: string;
+  /** 내가 쓴 글이면 삭제할 수 있다 */
+  mine: boolean;
+  body: string;
+  createdAt: string;
+  /** 답글이 달린 의견을 지우면 자리만 남긴다 — 대화가 끊기지 않게 */
+  deleted: boolean;
+  replies?: Comment[];
 }
 
 export interface Me {

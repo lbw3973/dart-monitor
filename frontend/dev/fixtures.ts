@@ -1,8 +1,8 @@
 import type {
-  DisclosureDetail, DisclosureSummary, PageResponse, Section,
+  Comment, DisclosureDetail, DisclosureSummary, PageResponse, Section,
 } from "../src/types.ts";
 
-export type { DisclosureDetail, DisclosureSummary, PageResponse, Section };
+export type { Comment, DisclosureDetail, DisclosureSummary, PageResponse, Section };
 
 /** src/api.ts 의 Stats 와 같은 모양. 그쪽은 DOM(fetch)을 함께 들고 있어 여기에 다시 적는다. */
 export interface Stats {
@@ -204,4 +204,86 @@ export function detailOf(no: string, bookmarks: Set<string>): DisclosureDetail |
     sections: SECTIONS[no] ?? [],
     parseError: null,
   };
+}
+
+/* ── 의견 ── */
+
+/** 서버가 보관하는 모양 — 평평한 한 줄짜리. 화면에 줄 때만 답글을 묶는다. */
+export interface StoredComment {
+  id: number;
+  rceptNo: string;
+  parentId: number | null;
+  author: string;
+  mine: boolean;
+  body: string;
+  createdAt: string;
+  deleted: boolean;
+}
+
+const minutesAgo = (n: number) => new Date(Date.now() - n * 60_000).toISOString();
+
+/**
+ * 시드 의견. 확인해야 할 건 답글 1단·삭제 자리표시·빈 목록이라
+ * 세 가지가 다 나오도록 골라 뒀다.
+ */
+export function seedComments(): StoredComment[] {
+  return [
+    {
+      id: 1, rceptNo: NO[0], parentId: null, author: "이준호", mine: false, deleted: false,
+      createdAt: minutesAgo(182),
+      body: "7.12% → 9.94%. 변동 사유에는 경영권 목적이 아니라고 적혀 있는데, 한 달 새 2.8%p면 다음 보고서까지 봐야 그림이 나올 것 같습니다.",
+    },
+    {
+      id: 2, rceptNo: NO[0], parentId: 1, author: "박서연", mine: false, deleted: false,
+      createdAt: minutesAgo(97),
+      body: "정정 아니고 신규 접수 맞습니다. 접수번호 끝자리가 다르네요.",
+    },
+    {
+      id: 3, rceptNo: NO[0], parentId: 1, author: "테스트 계정", mine: true, deleted: false,
+      createdAt: minutesAgo(41),
+      body: "확인 감사합니다. 원문 대조해 보니 맞네요.",
+    },
+    {
+      id: 4, rceptNo: NO[0], parentId: null, author: "김도현", mine: false, deleted: true,
+      createdAt: minutesAgo(1_500),
+      body: "",
+    },
+    {
+      id: 5, rceptNo: NO[0], parentId: 4, author: "최유진", mine: false, deleted: false,
+      createdAt: minutesAgo(1_440),
+      body: "위 의견은 지워졌지만 답글은 남습니다 — 대화가 끊기지 않게.",
+    },
+    {
+      id: 6, rceptNo: NO[1], parentId: null, author: "정민석", mine: false, deleted: false,
+      createdAt: minutesAgo(12),
+      body: "정정 사유가 장내매도 수량 오기재인데, 소유 후 수량은 그대로입니다. 어느 쪽이 맞는 건가요?",
+    },
+  ];
+}
+
+/**
+ * 평평한 목록을 화면이 쓰는 모양(최상위 + 답글)으로 묶는다.
+ * authed=false 면 내 글 판정도 끈다 — 실제 백엔드가 세션으로 정하는 값이다.
+ */
+export function threadOf(rceptNo: string, all: StoredComment[], authed = true): Comment[] {
+  const mine = all.filter(c => c.rceptNo === rceptNo);
+  const view = (c: StoredComment): Comment => ({
+    id: c.id,
+    author: c.author,
+    mine: authed && c.mine,
+    body: c.deleted ? "" : c.body,
+    createdAt: c.createdAt,
+    deleted: c.deleted,
+  });
+
+  return mine
+    .filter(c => c.parentId === null)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .map(c => ({
+      ...view(c),
+      replies: mine
+        .filter(r => r.parentId === c.id)
+        .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+        .map(view),
+    }));
 }

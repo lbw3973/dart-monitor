@@ -1,5 +1,15 @@
 @import "tailwindcss";
 
+/* Tailwind v4 preflight 는 버튼 커서를 default 로 둔다(v3 와 달라진 점).
+   마우스 환경에서 눌리는 요소인지 구분이 안 되므로 되돌린다. */
+@layer base {
+  button:not(:disabled),
+  select:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]) {
+    cursor: pointer;
+  }
+}
+
 /* DART 원문 표 재현 — 백엔드가 내려주는 table_html 전용 */
 .dart-table table {
   border-collapse: collapse;
