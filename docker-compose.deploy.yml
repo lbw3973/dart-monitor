@@ -55,6 +55,10 @@ services:
       KAKAO_REDIRECT_URI: https://${DOMAIN:?}/api/auth/kakao/callback
       APP_BASE_URL: https://${DOMAIN}
       COOKIE_SECURE: "true"
+      # 첫 관리자의 카카오 provider_uid. 쉼표로 여러 개.
+      # .env 에만 적어두면 안 된다 — compose 는 .env 를 변수 치환에만 쓰고,
+      # 컨테이너 안으로는 여기 적힌 것만 넘긴다.
+      ADMIN_UIDS: ${ADMIN_UIDS:-}
       # 컨테이너 상한(900M)의 65% ≈ 585MB를 힙으로. 나머지는 메타스페이스·스레드 몫
       JAVA_OPTS: "-XX:MaxRAMPercentage=65 -XX:+UseSerialGC -Xss512k"
     volumes:
