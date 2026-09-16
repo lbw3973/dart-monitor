@@ -1,5 +1,22 @@
 import DOMPurify from "dompurify";
 import { useMemo } from "react";
+
+/**
+ * 본문 이미지는 DART 뷰어에서 직접 불러오므로 외부 주소를 허용해야 한다.
+ * 다만 ALLOWED_URI_REGEXP 로 막으면 안 된다 — 그 옵션은 URI 속성만이 아니라
+ * 모든 속성값을 검사해서 rowspan="3" · colspan="2" 같은 표 속성까지 지워버린다.
+ * (실측: 그 설정에서 표 병합이 전부 풀려 열이 어긋났다)
+ * 그래서 src 만 후크로 검사하고 호스트가 다르면 이미지를 통째로 제거한다.
+ */
+const IMAGE_HOST = "https://dart.fss.or.kr/";
+
+DOMPurify.addHook("afterSanitizeAttributes", node => {
+  if (node.tagName === "IMG" && !(node.getAttribute("src") ?? "").startsWith(IMAGE_HOST)) {
+    node.remove();
+  }
+});
+
+const SANITIZE = { USE_PROFILES: { html: true }, ADD_TAGS: ["figure", "figcaption"] };
 import type { DisclosureDetail, Section } from "../types";
 import { REPORT_TYPE_LABEL, REPORT_TYPE_STYLE } from "../types";
 import { ShareMenu } from "./ShareMenu";
@@ -106,16 +123,7 @@ export function DetailPane({ detail, loading, error, onToggleBookmark, onBack, o
  */
 function Block({ html }: { html: string }) {
   // 백엔드가 화이트리스트로 재구성한 HTML이지만, 브라우저 삽입 전 한 번 더 정화한다
-  // 본문 이미지는 DART 뷰어에서 직접 불러온다(원본 ZIP에 파일이 없다).
-  // 외부 주소를 허용해야 하므로 호스트를 dart.fss.or.kr 로 한정한다.
-  const clean = useMemo(
-    () =>
-      DOMPurify.sanitize(html, {
-        USE_PROFILES: { html: true },
-        ALLOWED_URI_REGEXP: /^https:\/\/dart\.fss\.or\.kr\//,
-      }),
-    [html],
-  );
+  const clean = useMemo(() => DOMPurify.sanitize(html, SANITIZE), [html]);
   const spacing = html.startsWith("<h4")
     ? "mt-3 mb-1"
     : html.startsWith("<p")

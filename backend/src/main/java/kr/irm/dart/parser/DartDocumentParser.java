@@ -112,7 +112,7 @@ public class DartDocumentParser {
                 continue;
             }
             Element section = found.get();
-            String title = titleOf(section);
+            String title = qualifiedTitle(section);
             if (rule.expect() != null && !normalize(title).contains(normalize(rule.expect()))) {
                 warnings.add("제목 불일치 id=%s expect='%s' actual='%s'"
                         .formatted(rule.id(), rule.expect(), title));
@@ -203,6 +203,21 @@ public class DartDocumentParser {
                 default -> collectBlocks(child, ownTitle, out);
             }
         }
+    }
+
+    /**
+     * 화면에 보일 제목. 절(節)이면 상위 장(章) 제목을 앞에 붙인다.
+     *
+     * "4. 주식의 총수 등" 만 보여주면 어느 장에 속한 절인지 알 수 없어
+     * 다른 대제목들과 같은 층위처럼 읽힌다. 원문 목차에서는 "I. 회사의 개요" 아래에 있다.
+     * 상위 장은 문서 구조(SECTION-1)에서 찾으므로 룰에 따로 적지 않아도 된다.
+     */
+    private static String qualifiedTitle(Element section) {
+        String own = titleOf(section);
+        Element chapter = section.closest("SECTION-1");
+        if (chapter == null || chapter == section) return own;
+        String parent = titleOf(chapter);
+        return parent.isBlank() || parent.equals(own) ? own : parent + " › " + own;
     }
 
     /** 섹션 자신의 제목 엘리먼트. 블록 목록에서 제외하려면 동일성 비교가 필요하다. */
