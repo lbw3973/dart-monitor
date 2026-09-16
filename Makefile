@@ -2,7 +2,7 @@
 # 프론트와 백엔드는 별개 이미지다. 각각의 버전을 따로 올린다.
 IMAGE_NAME       = ghcr.io/lbw3973/dart
 BACKEND_VERSION  = 1.0.1
-FRONTEND_VERSION = 1.0.0
+FRONTEND_VERSION = 0.6.0
 LATEST           = latest
 PLATFORM         = linux/arm64
 
@@ -31,3 +31,15 @@ docker-frontend:                    ## 프론트만
 		-t $(IMAGE_NAME)-frontend:$(FRONTEND_VERSION) \
 		-t $(IMAGE_NAME)-frontend:$(LATEST) \
 		--push -f ./deploy/Dockerfile.frontend .
+
+# 서버 스크립트는 이미지에 들어가지 않는다(호스트에서 docker 를 호출하므로).
+# 고칠 때마다 손으로 올려야 해서 잊기 쉬우니 명령으로 남긴다.
+DEPLOY_HOST ?= bwlee
+DEPLOY_DIR  ?= /opt/bwlee/lib/dart-monitor
+
+deploy-scripts:                     ## 서버 스크립트·compose 파일 갱신
+	scp deploy/_common.sh deploy/update-program.sh deploy/update-data.sh \
+	    deploy/backup.sh deploy/restore.sh deploy/Caddyfile \
+	    docker-compose.deploy.yml \
+	    $(DEPLOY_HOST):$(DEPLOY_DIR)/
+	ssh $(DEPLOY_HOST) 'chmod +x $(DEPLOY_DIR)/*.sh'

@@ -1,8 +1,18 @@
 # 서버에서 쓰는 구성 — 빌드하지 않고 레지스트리의 이미지를 받아 실행한다.
-# 서버에 필요한 파일은 이 파일 + deploy/Caddyfile + .env 셋뿐이다.
 #
-#   docker compose -f docker-compose.deploy.yml pull
-#   docker compose -f docker-compose.deploy.yml up -d
+# 서버에 둬야 하는 파일 (이미지에 들어가지 않는다. docker 를 호스트에서 호출하므로):
+#   docker-compose.deploy.yml   이 파일
+#   deploy/Caddyfile            프론트 컨테이너에 마운트된다
+#   deploy/_common.sh           스크립트 공통 설정
+#   deploy/update-program.sh    이미지 배포
+#   deploy/update-data.sh       데이터 수집·재처리
+#   .env                        비밀값 (기본 경로 /opt/bwlee/etc/dart-monitor.env)
+#
+# 스크립트를 고치면 서버에도 다시 올려야 한다. 이미지와 함께 배포되지 않는다:
+#   make deploy-scripts
+#
+#   ./update-program.sh          배포
+#   ./update-data.sh             수집
 
 services:
   postgres:
