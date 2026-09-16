@@ -1,27 +1,41 @@
 package kr.irm.dart.config;
 
+import kr.irm.dart.auth.AdminGuard;
 import kr.irm.dart.auth.AuthInterceptor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 
 import java.util.List;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
+import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
 
     private final AuthInterceptor authInterceptor;
+    private final AdminGuard adminGuard;
     private final KakaoProperties kakao;
 
-    public WebConfig(AuthInterceptor authInterceptor, KakaoProperties kakao) {
+    public WebConfig(AuthInterceptor authInterceptor, AdminGuard adminGuard, KakaoProperties kakao) {
         this.authInterceptor = authInterceptor;
+        this.adminGuard = adminGuard;
         this.kakao = kakao;
     }
 
     @Override
     public void addArgumentResolvers(List<HandlerMethodArgumentResolver> resolvers) {
         resolvers.add(authInterceptor);
+    }
+
+    /**
+     * 관리자 API는 경로 단위로 막는다.
+     * 위 addArgumentResolvers 는 @CurrentUser 주입만 할 뿐 아무것도 막지 않는다 —
+     * 그것만 있던 동안 /api/admin/** 이 통째로 열려 있었다.
+     */
+    @Override
+    public void addInterceptors(InterceptorRegistry registry) {
+        registry.addInterceptor(adminGuard).addPathPatterns("/api/admin/**");
     }
 
     /**
