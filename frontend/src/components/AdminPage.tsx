@@ -68,13 +68,14 @@ function Disclosures({ onNotice }: { onNotice: Props["onNotice"] }) {
   const qc = useQueryClient();
   const { q, setQ, debounced, page, setPage } = useSearch();
   const [hidden, setHidden] = useState<boolean | null>(null);
+  const [range, setRange] = useState(defaultMonth);
 
   // 필터를 바꾸면 첫 페이지로 — 3페이지를 보던 중 조건을 좁히면 빈 화면이 나온다
-  useEffect(() => setPage(0), [hidden, setPage]);
+  useEffect(() => setPage(0), [hidden, range.from, range.to, setPage]);
 
   const list = useQuery({
-    queryKey: ["admin", "disclosures", debounced, hidden, page],
-    queryFn: () => fetchAdminDisclosures(debounced, hidden, page),
+    queryKey: ["admin", "disclosures", debounced, hidden, range.from, range.to, page],
+    queryFn: () => fetchAdminDisclosures({ q: debounced, hidden, ...range, page }),
     placeholderData: keepPreviousData,
   });
 
@@ -103,6 +104,35 @@ function Disclosures({ onNotice }: { onNotice: Props["onNotice"] }) {
 
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <SearchBox value={q} onChange={setQ} placeholder="회사명 · 보고서명 · 접수번호" />
+
+        {/* 기본은 최근 한 달. 비우면 기간 제한이 풀린다 —
+            오래된 접수번호로 찾을 때 날짜가 걸림돌이 되면 안 된다 */}
+        <input
+          type="date"
+          value={range.from}
+          max={range.to || undefined}
+          onChange={e => setRange(r => ({ ...r, from: e.target.value }))}
+          aria-label="접수일 시작"
+          className={DATE_INPUT}
+        />
+        <span className="text-xs text-slate-400">~</span>
+        <input
+          type="date"
+          value={range.to}
+          min={range.from || undefined}
+          onChange={e => setRange(r => ({ ...r, to: e.target.value }))}
+          aria-label="접수일 끝"
+          className={DATE_INPUT}
+        />
+        {(range.from || range.to) && (
+          <button
+            onClick={() => setRange({ from: "", to: "" })}
+            className="shrink-0 cursor-pointer rounded px-1.5 py-1 text-xs text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800"
+          >
+            기간 해제
+          </button>
+        )}
+
         <div className="flex shrink-0 rounded bg-slate-100 p-0.5 dark:bg-slate-800">
           {([[null, "전체"], [false, "보이는 것"], [true, "내린 것"]] as const).map(([v, label]) => (
             <button
@@ -343,6 +373,27 @@ function useSearch() {
   useEffect(() => setPage(0), [debounced]);
 
   return { q, setQ, debounced, page, setPage };
+}
+
+const DATE_INPUT =
+  "h-8 shrink-0 rounded border border-slate-300 bg-white px-2 text-xs dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100";
+
+/**
+ * 관리자 공시 목록의 기본 기간 — 오늘 포함 최근 한 달.
+ *
+ * toISOString() 은 UTC 라 한국시간 오전에는 날짜가 하루 밀린다.
+ * 로컬 기준으로 찍는다.
+ */
+function defaultMonth() {
+  const to = new Date();
+  const from = new Date(to);
+  from.setMonth(from.getMonth() - 1);
+  return { from: ymd(from), to: ymd(to) };
+}
+
+function ymd(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
 function SearchBox({

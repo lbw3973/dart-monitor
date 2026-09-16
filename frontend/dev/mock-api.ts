@@ -130,10 +130,14 @@ function admin(req: IncomingMessage, res: ServerResponse, path: string, method: 
     const url = new URL(req.url ?? "/", "http://localhost");
     const q = (url.searchParams.get("q") ?? "").trim();
     const hidden = url.searchParams.get("hidden");
+    const from = url.searchParams.get("from");
+    const to = url.searchParams.get("to");
     const hit = disclosures.filter(d => {
       const isHidden = store.hidden.has(d.rceptNo);
       if (hidden === "true" && !isHidden) return false;
       if (hidden === "false" && isHidden) return false;
+      if (from && d.rceptDt < from) return false;
+      if (to && d.rceptDt > to) return false;
       if (q && !`${d.corpName} ${d.reportNm} ${d.rceptNo}`.includes(q)) return false;
       return true;
     });

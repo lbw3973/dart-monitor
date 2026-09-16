@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -40,7 +41,9 @@ public class AdminService {
      * @param hidden null=전체, true=숨긴 것만, false=보이는 것만
      */
     @Transactional(readOnly = true)
-    public PageResponse<AdminDisclosure> disclosures(String q, Boolean hidden, int page, int size) {
+    public PageResponse<AdminDisclosure> disclosures(String q, Boolean hidden,
+                                                     LocalDate from, LocalDate to,
+                                                     int page, int size) {
         Pageable pageable = PageRequest.of(Math.max(page, 0), Math.clamp(size, 1, MAX_SIZE),
                 Sort.by(Sort.Direction.DESC, "rceptDt", "rceptNo"));
 
@@ -49,6 +52,9 @@ public class AdminService {
             if (hidden != null) {
                 ps.add(hidden ? cb.isNotNull(root.get("hiddenAt")) : cb.isNull(root.get("hiddenAt")));
             }
+            // 비우면 기간 제한이 없다 — 오래된 접수번호를 찾을 때 날짜가 걸림돌이 되면 안 된다
+            if (from != null) ps.add(cb.greaterThanOrEqualTo(root.get("rceptDt"), from));
+            if (to != null)   ps.add(cb.lessThanOrEqualTo(root.get("rceptDt"), to));
             if (q != null && !q.isBlank()) {
                 String like = "%" + q.trim().toLowerCase() + "%";
                 ps.add(cb.or(

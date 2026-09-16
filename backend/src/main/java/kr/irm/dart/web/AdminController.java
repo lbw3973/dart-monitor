@@ -5,8 +5,10 @@ import kr.irm.dart.domain.AppUser;
 import kr.irm.dart.service.AdminService;
 import kr.irm.dart.web.dto.AdminDto.*;
 import kr.irm.dart.web.dto.PageResponse;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -32,11 +34,14 @@ public class AdminController {
 
     /** hidden 을 생략하면 전체, true 면 숨긴 것만, false 면 보이는 것만. */
     @GetMapping("/disclosures")
-    public PageResponse<AdminDisclosure> disclosures(@RequestParam(required = false) String q,
-                                                     @RequestParam(required = false) Boolean hidden,
-                                                     @RequestParam(defaultValue = "0") int page,
-                                                     @RequestParam(defaultValue = "50") int size) {
-        return admin.disclosures(q, hidden, page, size);
+    public PageResponse<AdminDisclosure> disclosures(
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) Boolean hidden,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size) {
+        return admin.disclosures(q, hidden, from, to, page, size);
     }
 
     @PutMapping("/disclosures/{rceptNo}/hidden")

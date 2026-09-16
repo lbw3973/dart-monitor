@@ -111,12 +111,23 @@ export function removeComment(id: number) {
 
 /* ── 관리자 ── */
 
-/** hidden 을 생략하면 전체, true 면 숨긴 것만, false 면 보이는 것만 */
-export function fetchAdminDisclosures(q: string, hidden: boolean | null, page = 0) {
+export interface AdminSearch {
+  q: string;
+  /** null=전체, true=숨긴 것만, false=보이는 것만 */
+  hidden: boolean | null;
+  /** 비우면 기간 제한 없음 */
+  from: string;
+  to: string;
+  page: number;
+}
+
+export function fetchAdminDisclosures(p: AdminSearch) {
   const qs = new URLSearchParams();
-  if (q.trim()) qs.set("q", q.trim());
-  if (hidden !== null) qs.set("hidden", String(hidden));
-  qs.set("page", String(page));
+  if (p.q.trim()) qs.set("q", p.q.trim());
+  if (p.hidden !== null) qs.set("hidden", String(p.hidden));
+  if (p.from) qs.set("from", p.from);
+  if (p.to) qs.set("to", p.to);
+  qs.set("page", String(p.page));
   qs.set("size", "50");
   return get<PageResponse<AdminDisclosure>>(`/api/admin/disclosures?${qs}`);
 }
