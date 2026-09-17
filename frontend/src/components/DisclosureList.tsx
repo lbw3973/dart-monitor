@@ -24,10 +24,10 @@ export function DisclosureList({ items, selected, loading, emptyText, onSelect, 
       {items.map(d => {
         const active = d.rceptNo === selected;
         return (
-          <li key={d.rceptNo}>
+          <li key={d.rceptNo} className="relative">
             <button
               onClick={() => onSelect(d.rceptNo)}
-              className={`flex w-full min-w-0 flex-col gap-1 px-3 py-2 text-left transition ${
+              className={`flex w-full min-w-0 flex-col gap-1 py-2 pl-3 pr-7 text-left transition ${
                 active
                   ? "bg-sky-50 dark:bg-sky-950"
                   : "hover:bg-slate-50 dark:hover:bg-slate-800/50"
@@ -70,7 +70,6 @@ export function DisclosureList({ items, selected, loading, emptyText, onSelect, 
                 >
                   {d.rceptDt.slice(5)}
                 </span>
-                <StarButton marked={d.bookmarked} onToggle={() => onToggleBookmark(d)} />
               </div>
 
               <div className="truncate text-sm font-medium text-slate-800 dark:text-slate-100">
@@ -90,6 +89,13 @@ export function DisclosureList({ items, selected, loading, emptyText, onSelect, 
                 {d.flrNm ?? "-"}
               </div>
             </button>
+            {/* 행 전체가 <button> 이라 별을 그 안에 두면 버튼이 중첩된다(유효하지 않은 HTML).
+                절대배치로 빼내 둘 다 진짜 버튼으로 남긴다 — 버튼 오른쪽 여백이 자리다. */}
+            <StarButton
+              marked={d.bookmarked}
+              onToggle={() => onToggleBookmark(d)}
+              className="absolute right-2 top-2"
+            />
           </li>
         );
       })}

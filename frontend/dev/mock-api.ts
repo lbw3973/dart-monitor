@@ -8,8 +8,10 @@ import { detailOf, disclosures, seedComments, seedUsers, threadOf } from "./fixt
 /**
  * MOCK_ANON=1 이면 로그아웃 상태로 띄운다(§package.json dev:anon).
  * 의견 입력창 비활성·카카오 로그인 버튼 같은 비로그인 화면은 이렇게만 확인할 수 있다.
+ *
+ * 시작값일 뿐이다 — 로그인/로그아웃 여부는 store.anon 이 들고 있어서 화면에서 오갈 수 있다.
  */
-const ANON = !!process.env.MOCK_ANON;
+const ANON_START = !!process.env.MOCK_ANON;
 
 /** 이 개발 서버가 살아 있는 동안만 유지되는 가짜 저장소 */
 interface Store {
@@ -19,6 +21,8 @@ interface Store {
   users: AdminUser[];
   /** 관리자가 내린 공시(§V7__disclosure_hidden.sql). 행은 지우지 않는다. */
   hidden: Set<string>;
+  /** 로그아웃 상태. 로그아웃·카카오 로그인 경로가 이 값을 뒤집는다. */
+  anon: boolean;
 }
 
 /**
@@ -38,6 +42,7 @@ export function mockApi(): Plugin {
     nextId: Math.max(...seed.map(c => c.id)) + 1,
     users: seedUsers(),
     hidden: new Set<string>(),
+    anon: ANON_START,
   };
 
   return {
@@ -63,10 +68,21 @@ function route(req: IncomingMessage, res: ServerResponse, store: Store): boolean
   if (path === "/api/stream") return stream(res);
 
   if (path === "/api/auth/me") {
-    if (ANON) return json(res, { authenticated: false });
+    if (store.anon) return json(res, { authenticated: false });
     return json(res, { authenticated: true, nickname: "테스트 계정", admin: isAdmin(store) });
   }
-  if (path === "/api/auth/logout") return json(res, {});
+  if (path === "/api/auth/logout") {
+    store.anon = true;
+    return json(res, {});
+  }
+  // 실제 카카오 로그인은 인가 코드를 받아 오지만, 목업은 곧장 로그인 상태로 돌려보낸다.
+  // 이게 없으면 한 번 로그아웃한 뒤 개발 서버를 다시 띄워야 로그인 화면으로 못 돌아온다.
+  if (path === "/api/auth/kakao/login") {
+    store.anon = false;
+    res.writeHead(302, { Location: "/" });
+    res.end();
+    return true;
+  }
 
   if (path === "/api/disclosures") return json(res, search(url, store));
 
@@ -83,18 +99,24 @@ function route(req: IncomingMessage, res: ServerResponse, store: Store): boolean
 
   const commentMatch = /^\/api\/disclosures\/(\d+)\/comments$/.exec(path);
   if (commentMatch && method === "GET") {
-    return json(res, threadOf(commentMatch[1], store.comments, !ANON, isAdmin(store)));
+    return json(res, threadOf(commentMatch[1], store.comments, !store.anon, isAdmin(store)));
   }
   if (commentMatch && method === "POST") {
-    if (ANON) return json(res, { message: "로그인이 필요합니다" }, 401);
+    if (store.anon) return json(res, { message: "로그인이 필요합니다" }, 401);
     void post(req, res, commentMatch[1], store);
     return true;
   }
 
   const oneComment = /^\/api\/comments\/(\d+)$/.exec(path);
   if (oneComment && method === "DELETE") {
-    if (ANON) return json(res, { message: "로그인이 필요합니다" }, 401);
+    if (store.anon) return json(res, { message: "로그인이 필요합니다" }, 401);
     return del(res, Number(oneComment[1]), store);
+  }
+
+  // 실제 백엔드는 세 경로 모두 비로그인이면 401 이다(§BookmarkController.require).
+  // 목업이 성공을 돌려주면 "저장하려면 로그인이 필요합니다" 토스트를 볼 수 없다.
+  if (path.startsWith("/api/bookmarks") && store.anon) {
+    return json(res, { message: "로그인이 필요합니다" }, 401);
   }
 
   if (path === "/api/bookmarks" && method === "GET") {
@@ -123,7 +145,7 @@ function route(req: IncomingMessage, res: ServerResponse, store: Store): boolean
 /** 실제 백엔드는 AdminGuard 가 경로 단위로 막는다(§WebConfig.addInterceptors). */
 function admin(req: IncomingMessage, res: ServerResponse, path: string, method: string,
                store: Store): boolean {
-  if (ANON) return json(res, { message: "로그인이 필요합니다" }, 401);
+  if (store.anon) return json(res, { message: "로그인이 필요합니다" }, 401);
   if (!isAdmin(store)) return json(res, { message: "관리자만 접근할 수 있습니다" }, 403);
 
   if (path === "/api/admin/disclosures" && method === "GET") {
@@ -179,7 +201,7 @@ function admin(req: IncomingMessage, res: ServerResponse, path: string, method: 
 }
 
 function isAdmin(store: Store): boolean {
-  return store.users.some(u => u.me && u.admin);
+  return !store.anon && store.users.some(u => u.me && u.admin);
 }
 
 function adminView(d: DisclosureSummary, store: Store) {
@@ -263,7 +285,8 @@ function search(url: URL, store: Store): PageResponse<DisclosureSummary> {
 function mark(d: DisclosureSummary, store: Store): DisclosureSummary {
   return {
     ...d,
-    bookmarked: store.bookmarks.has(d.rceptNo),
+    // 비로그인이면 실제 백엔드도 저장 여부를 채우지 않는다 — 별이 켜져 보이면 안 된다.
+    bookmarked: !store.anon && store.bookmarks.has(d.rceptNo),
     commentCount: countOf(d.rceptNo, store),
   };
 }

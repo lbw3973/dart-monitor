@@ -19,7 +19,16 @@ export interface ViewState {
   admin: boolean;
 }
 
-const ymd = (d: Date) => d.toISOString().slice(0, 10);
+/**
+ * 로컬(한국시간) 기준 날짜.
+ *
+ * toISOString() 은 UTC 라 오전 9시 이전에는 날짜가 하루 밀린다. DART 접수가 07:30 부터
+ * 시작하므로 그러면 아침에 들어온 사용자가 그날 공시를 기본 화면에서 못 본다.
+ */
+const ymd = (d: Date) => {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
 
 /** 기본 검색 기간: 오늘 포함 최근 7일 */
 function defaultRange() {

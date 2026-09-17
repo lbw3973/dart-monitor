@@ -2,9 +2,10 @@ interface Props {
   marked: boolean;
   onToggle: () => void;
   size?: "sm" | "md";
+  className?: string;
 }
 
-export function StarButton({ marked, onToggle, size = "sm" }: Props) {
+export function StarButton({ marked, onToggle, size = "sm", className = "" }: Props) {
   return (
     <button
       onClick={e => { e.stopPropagation(); onToggle(); }}
@@ -14,7 +15,7 @@ export function StarButton({ marked, onToggle, size = "sm" }: Props) {
         marked
           ? "text-amber-500 hover:text-amber-600"
           : "text-slate-300 hover:text-amber-400 dark:text-slate-600"
-      }`}
+      } ${className}`}
     >
       {marked ? "★" : "☆"}
     </button>
