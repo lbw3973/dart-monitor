@@ -142,6 +142,8 @@ WHERE parse_status IN ('PARSED','PARSED_WITH_WARN','FAILED');
 | `docs/M0-FINDINGS.md` | DART 문서 구조 실측 결과 (`AASSOCNOTE` 매칭 체계) |
 | `docs/M1`~`M6-NOTES.md` | 단계별 구현 기록과 잡은 버그 |
 | `docs/M7-ADDITIONS.md` | 백필·반응형 등 추가 작업 |
+| `docs/M8-PERIODIC.md` | 정기공시 3종 추가 |
+| `docs/M9-COMMENTS-ADMIN.md` | 의견·관리자 페이지 — **남은 작업과 인계 사항** |
 | `docs/DEPLOY.md` | 배포 절차 (Oracle / AWS) |
 
 ---
