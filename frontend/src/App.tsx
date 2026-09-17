@@ -28,7 +28,6 @@ export default function App() {
   };
 
   const [debouncedQ, setDebouncedQ] = useState(view.q);
-  const [live, setLive] = useState(true);
   const [newCount, setNewCount] = useState(0);
   const [toast, setToast] = useState<ToastMessage | null>(null);
 
@@ -53,6 +52,8 @@ export default function App() {
   }, [view.admin, meQuery.isFetched, meQuery.data?.admin, setView]);
 
   // SSE가 살아 있으면 폴링은 불필요하다. 끊기면 자동으로 30초 폴링이 공백을 메운다.
+  // 끄고 켤 수단은 두지 않는다 — 실시간 수신은 이 화면의 기본 동작이고,
+  // 폴링은 사용자가 관리할 것이 아니라 연결이 끊긴 동안의 비상구다.
   const streamConnected = useDisclosureStream({
     onNew: n => setNewCount(c => c + n),
     onParsed: () => qc.invalidateQueries({ queryKey: ["disclosures"] }),
@@ -64,7 +65,7 @@ export default function App() {
       tab === "saved"
         ? fetchBookmarks(page, 50)
         : fetchDisclosures({ ...filters, q: debouncedQ, page, size: 50 }),
-    refetchInterval: live && tab === "all" && !streamConnected ? 30_000 : false,
+    refetchInterval: tab === "all" && !streamConnected ? 30_000 : false,
     placeholderData: keepPreviousData,
   });
 
@@ -126,12 +127,9 @@ export default function App() {
       <FilterBar
         {...filters}
         total={total}
-        live={live}
         me={meQuery.data}
         tab={tab}
-        streamConnected={streamConnected}
         onChange={patch}
-        onToggleLive={() => setLive(v => !v)}
         onTab={switchTab}
         onHome={goHome}
         onAdmin={() => setView({ admin: true, selected: null })}

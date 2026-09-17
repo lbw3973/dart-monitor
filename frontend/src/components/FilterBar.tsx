@@ -11,8 +11,6 @@ interface Props {
   from: string;
   to: string;
   total: number;
-  live: boolean;
-  streamConnected: boolean;
   me: Me | undefined;
   tab: "all" | "saved";
   onChange: (patch: {
@@ -22,14 +20,13 @@ interface Props {
     from?: string;
     to?: string;
   }) => void;
-  onToggleLive: () => void;
   onTab: (t: "all" | "saved") => void;
   onHome: () => void;
   onLogout: () => void;
   onAdmin: () => void;
   /**
    * 관리자 페이지에서는 로고와 계정 메뉴만 남긴다.
-   * 검색·기간·공시그룹·LIVE 는 목록에만 해당하는 것들이라 그대로 두면
+   * 검색·기간·공시그룹은 목록에만 해당하는 것들이라 그대로 두면
    * 눌러도 아무 일이 없는 조작부가 화면 위에 남는다.
    */
   minimal?: boolean;
@@ -44,8 +41,8 @@ const INPUT =
   "h-8 rounded border border-slate-300 bg-white px-2 text-xs dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100";
 
 export function FilterBar({
-  group, type, q, from, to, total, live, streamConnected, me, tab,
-  onChange, onToggleLive, onTab, onLogout, onHome, onAdmin, minimal,
+  group, type, q, from, to, total, me, tab,
+  onChange, onTab, onLogout, onHome, onAdmin, minimal,
 }: Props) {
   const [open, setOpen] = useState(false);   // 모바일에서 필터 접기
 
@@ -111,29 +108,6 @@ export function FilterBar({
             >
               카카오<span className="hidden sm:inline"> 로그인</span>
             </a>
-          )}
-
-          {!minimal && (
-          <button
-            onClick={onToggleLive}
-            title={
-              !live ? "실시간 수신 꺼짐"
-                : streamConnected ? "실시간 수신 중 (SSE)"
-                : "SSE 끊김 — 30초 폴링으로 대체 중"
-            }
-            className={`flex items-center gap-1 rounded px-1.5 py-1 text-xs font-medium transition ${
-              live
-                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-200"
-                : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"
-            }`}
-          >
-            <span
-              className={`h-1.5 w-1.5 rounded-full ${
-                !live ? "bg-slate-400" : streamConnected ? "animate-pulse bg-emerald-500" : "bg-amber-500"
-              }`}
-            />
-            <span className="hidden sm:inline">{live && !streamConnected ? "POLL" : "LIVE"}</span>
-          </button>
           )}
 
           {/* 모바일: 필터 토글 */}
