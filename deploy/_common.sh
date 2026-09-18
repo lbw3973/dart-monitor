@@ -11,7 +11,10 @@ OWNER="${DART_OWNER:-lbw3973}"
 IMAGE_BASE="${DART_IMAGE_BASE:-dart}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 COMPOSE_FILE="${DART_COMPOSE:-$SCRIPT_DIR/docker-compose.deploy.yml}"
-TOKEN_FILE="${GHCR_TOKEN_FILE:-$HOME/.config/ghcr-token}"
+#	HOME 을 감싸는 이유: systemd 서비스·cron 환경에는 HOME 이 없다.
+#	set -u 라 그냥 $HOME 을 쓰면 여기서 즉사한다 — update-data.sh 는
+#	이 값을 쓰지도 않는데 _common.sh 가 공통이라 같이 죽는다.
+TOKEN_FILE="${GHCR_TOKEN_FILE:-${HOME:-/root}/.config/ghcr-token}"
 
 if [ -n "${DART_ENV:-}" ]; then ENV_FILE="$DART_ENV"
 elif [ -f /opt/bwlee/etc/dart-monitor.env ]; then ENV_FILE=/opt/bwlee/etc/dart-monitor.env
